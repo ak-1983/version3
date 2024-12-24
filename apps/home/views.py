@@ -149,8 +149,9 @@ def index(request):
                 'start_date': course.start_date,
                 'end_date': course.end_date,
                 'is_enrolled': batch.id in enrolled_courses,
+                'is_accepted': batch.id in StudentEnrollment.objects.filter(student=request.user, approval_status=True).values_list('batch', flat=True)
             })
-        context = {'segment': 'index', 'courses': batches_list, 'ta': tas, 'is_ta': len(tas) > 0}
+        context = {'segment': 'index', 'courses': batches_list, 'is_ta': len(tas) > 0}
         html_template = loader.get_template('home/student/index.html')
         return HttpResponse(html_template.render(context, request))
 
@@ -401,36 +402,36 @@ def download_csv(request):
 
 def enrollment(request):
 
-    if request.method == 'POST':
-        print(request.body)
-        
-        data = request.body.decode('utf-8')
-        batch_id = int(json.loads(data)['batch_id'])
-        role = json.loads(data)['role']
-        username = str(json.loads(data)['student_username'])
-        action = json.loads(data)['student_action']
-        print(role, username, action)
-        if role == "TA":
-            username = User.objects.get(email=username)
-            print(username, action)
-            studentenrollment = StudentEnrollment.objects.filter(batch_id=batch_id, student__username=username).first()
-            print(studentenrollment)
-            if studentenrollment:
-                if action == "1":
-                    studentenrollment.approval_status = True
-                    studentenrollment.save()
-                    messages.success(request, 'Student approved successfully!')
-                    print("Approved")
-                elif action == "0":
-                    studentenrollment.delete()
-                    messages.error(request, 'Student rejected successfully!')
-                    print("Rejected")
-            else:
-                messages.error(request, 'Student not found in the selected batch.')
-                print("Not found")
-            return redirect('home')
-       
-        batch_id = int(batch_id)
+    if request.method == 'POST':     
+        try:   
+            data = request.body.decode('utf-8')
+            batch_id = int(json.loads(data)['batch_id'])
+            role = json.loads(data)['role']
+            if role == "TA":
+                username = str(json.loads(data)['student_username'])
+                action = json.loads(data)['student_action']
+                print(role, username, action)
+                username = User.objects.get(email=username)
+                print(username, action)
+                studentenrollment = StudentEnrollment.objects.filter(batch_id=batch_id, student__username=username).first()
+                print(studentenrollment)
+                if studentenrollment:
+                    if action == "1":
+                        studentenrollment.approval_status = True
+                        studentenrollment.save()
+                        messages.success(request, 'Student approved successfully!')
+                        print("Approved")
+                    elif action == "0":
+                        studentenrollment.delete()
+                        messages.error(request, 'Student rejected successfully!')
+                        print("Rejected")
+                else:
+                    messages.error(request, 'Student not found in the selected batch.')
+                    print("Not found")
+                return redirect('home')
+        except Exception as e:
+            pass
+        batch_id = int(request.POST.get('batch_id'))
         batch = Batch.objects.get(id=batch_id)
         student_username = request.user.username
         print(batch, student_username)
@@ -486,9 +487,9 @@ def ta_hub(request):
                 {
                     "name": f"{student.student.first_name} {student.student.last_name}",
                     "username": student.student.username,
-                    "email": student.student.email,
+                    "email": student.student.email
                 }
-                for student in StudentEnrollment.objects.filter(batch=ta.batch.id).order_by('approval_status')
+                for student in StudentEnrollment.objects.filter(batch=ta.batch.id, approval_status=False).order_by('approval_status')
             ],
         } for ta in TeachingAssistantAssociation.objects.filter(teaching_assistant=request.user)]
         return render(request, 'home/student/ta_hub.html', {'batches': batches, 'ta': tas, 'is_ta': len(tas) > 0})

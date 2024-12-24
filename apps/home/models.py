@@ -31,7 +31,6 @@ class Batch(models.Model):
     batch_id = models.CharField(max_length=100, help_text="Unique identifier for the batch")
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="batches")
     teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name="batches_as_teacher")
-    teaching_assistant = models.ForeignKey(User, on_delete=models.CASCADE, related_name="batches_as_ta", null=True, blank=True)
 
     class Meta:
         unique_together = ('course', 'batch_id', 'teacher')  # Ensures uniqueness of the teacher for a batch in a course
@@ -113,3 +112,4 @@ class TeachingAssistantAssociation(models.Model):
     @staticmethod
     def is_ta(user, batch):
         return TeachingAssistantAssociation.objects.filter(teaching_assistant=user, batch=batch).exists()
+
