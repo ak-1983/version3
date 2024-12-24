@@ -174,6 +174,37 @@
             <div class="card-header border-0">
               <div class="row align-items-center">
                 <div class="col">
+                  <h3 class="mb-0">Upload evaluation</h3>
+                  <div class="form-group">
+                  <label for="todaysTopic">Evaluation for</label>
+                  <select class="form-control" id="todaysTopic">
+                    <option>Introduction to Python</option>
+                    <option>Introduction to Django</option>
+                    <option>Introduction to Flask</option>
+                    <option>Introduction to FastAPI</option>
+                    <option>Introduction to Django REST Framework</option>
+                  </select>
+
+                  <label for="evaluationfile">Upload your evaluation</label>
+                  <input type="file" class="form-control-file" id="evaluationfile" aria-describedby="evaluationfileHelp">
+                  <small id="evaluationfileHelp" class="form-text text-muted">Only PDF files are allowed</small>
+                  <button type="submit" class="btn btn-sm btn-primary">Submit</button>
+                  
+                </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+      </div>
+      <div class="row">
+        <div class="col-xl-12">
+          <div class="card">
+            <div class="card-header border-0">
+              <div class="row align-items-center">
+                <div class="col">
                   <h3 class="mb-0">Lecture Evaluation</h3>
                 </div>
               </div>
@@ -182,7 +213,7 @@
               <form>
                 <!-- Today's Topic -->
                 <div class="form-group">
-                  <label for="todaysTopic">Today's Topic</label>
+                  <label for="todaysTopic">Today's Topics</label>
                   <select class="form-control" id="todaysTopic">
                     <option>Introduction to Python</option>
                     <option>Introduction to Django</option>
@@ -212,7 +243,6 @@
             </div>
           </div>
         </div>
-
       </div>
 
       {% include "includes/footer.html" %}
@@ -223,6 +253,75 @@
 
 <!-- Specific JS goes HERE --> 
 {% block javascripts %}
+
+  <script>
+    const dropArea = document.getElementById('drop-area');
+const fileInput = document.getElementById('file-input');
+const fileInfo = document.getElementById('file-info');
+const submitButton = document.getElementById('submit-button');
+const triggerButton = document.getElementById('trigger-button');
+const headerTitle = document.getElementById('header-title');
+const fileNameElement = document.getElementById('file-name');
+
+// Trigger file input dialog
+function triggerFileInput() {
+  fileInput.click();
+}
+
+// Highlight the drop area on drag events
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+  dropArea.addEventListener(event, (e) => e.preventDefault());
+});
+
+['dragenter', 'dragover'].forEach(event => {
+  dropArea.addEventListener(event, () => dropArea.classList.add('bg-gray-100'));
+});
+
+['dragleave', 'drop'].forEach(event => {
+  dropArea.addEventListener(event, () => dropArea.classList.remove('bg-gray-100'));
+});
+
+// Handle drop event
+dropArea.addEventListener('drop', (e) => {
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    fileInput.files = e.dataTransfer.files;
+    handleFileSelection(fileInput.files[0]);
+  }
+});
+
+// Handle file input change
+fileInput.addEventListener('change', () => {
+  const files = fileInput.files;
+  if (files.length > 0) {
+    handleFileSelection(files[0]);
+  }
+});
+
+// Handle file selection
+function handleFileSelection(file) {
+  if (file.type === 'application/pdf') {
+    fileNameElement.textContent = file.name; // Update file name display
+    fileInfo.classList.remove('hidden'); // Show file info
+    submitButton.classList.remove('hidden'); // Show submit button
+    triggerButton.classList.add('hidden'); // Hide upload button
+    headerTitle.textContent = `File Selected: ${file.name}`; // Update header title
+  } else {
+    alert('Only PDF files are allowed!');
+    fileInput.value = ''; // Clear invalid selection
+    resetForm();
+  }
+}
+
+// Reset form to initial state
+function resetForm() {
+  fileInfo.classList.add('hidden');
+  submitButton.classList.add('hidden');
+  triggerButton.classList.remove('hidden');
+  headerTitle.textContent = 'Upload Files';
+}
+
+  </script>
 
   <script src="/static/assets/vendor/chart.js/dist/Chart.min.js"></script>
   <script src="/static/assets/vendor/chart.js/dist/Chart.extension.js"></script>
