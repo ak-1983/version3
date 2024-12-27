@@ -22,40 +22,8 @@
                 </ol>
               </nav>
             </div>
-            <div class="col-lg-6 col-5 text-right">
-              <!-- Button to trigger modal -->
-              <button data-toggle="modal" data-target="#csvModal" class="btn btn-sm btn-neutral">Download CSV</button>
-            </div>
           </div>
           <!-- Card stats (same as before) -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal for CSV download -->
-    <div class="modal fade" id="csvModal" tabindex="-1" aria-labelledby="csvModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="csvModalLabel">Select Course and Batch</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body">
-            <form id="csvForm" method="POST" action="{% url 'download_csv' %}">
-              {% csrf_token %}
-              <div class="form-group">
-                <label for="batchSelect">Select Batch</label>
-                <select class="form-control" id="batchSelect" name="batch">
-                  {% for batch in batches %}
-                    <option value="{{ batch.batch_id }}">{{ batch.course_name }} | {{ batch.course_id }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <button type="submit" class="btn btn-primary">Download CSV</button>
-            </form>
-          </div>
         </div>
       </div>
     </div>
