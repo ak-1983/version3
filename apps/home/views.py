@@ -516,7 +516,6 @@ def examination(request):
     elif request.method == 'DELETE':
         if request.user.is_staff:
             data = request.body.decode('utf-8')
-<<<<<<< Updated upstream
             if data:
                 try:
                     exam_id = json.loads(data)['exam_id']
@@ -532,18 +531,6 @@ def examination(request):
             else:
                 messages.error(request, 'No data provided.')
             return redirect('examination')
-=======
-            try:
-                exam_id = json.loads(data)['exam_id']
-                exam = Exam.objects.get(id=exam_id)
-                exam.delete()
-                messages.success(request, 'Exam deleted successfully!')
-            except Exception as e:
-                messages.error(request, f'An error occurred: {str(e)}')
-            return redirect('examination')
-    
-
->>>>>>> Stashed changes
     else:
         messages.error(request, 'Invalid request method.')
         return 

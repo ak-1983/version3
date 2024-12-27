@@ -111,9 +111,6 @@
                             <td class="px-4 py-2">{{ batch.exams.number_of_questions }}</td>
                             <td class="px-4 py-2">{{ batch.exams.max_scores }}</td>
                             <td class="px-4 py-2">
-<<<<<<< Updated upstream
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="deleteExamination({{ batch.exams.id }})">Delete</button>
-=======
                               <div class="d-flex">
                                 <button class="btn btn-sm btn-danger mr-2" onclick="deleteExamination({{ batch.exams.id }})"><i class="fas fa-trash"></i></button>
                                 <form id="csvForm" method="POST" action="{% url 'download_csv' %}">
@@ -122,7 +119,6 @@
                                   <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-download"></i></button>
                                 </form>
                               </div>
->>>>>>> Stashed changes
                             </td>
                           {% endif %}
                         
@@ -145,34 +141,6 @@
 {% block javascripts %}
 
     <script>
-<<<<<<< Updated upstream
-  function deleteExamination(exam_id) {
-    const csrfToken = "{{ csrf_token }}"; // CSRF token from Django context
-    const url = "{% url 'examination' %}"; // Correctly resolved URL
-    fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken,
-      },
-      body: JSON.stringify({ exam_id: exam_id })
-    })
-    .then(response => {
-      if (response.ok) {
-        // Reload the page
-        location.reload();
-        // After the page reloads, clear the URL arguments
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } else {
-        console.error('Failed to delete the examination.');
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-    });
-  };
-</script>
-=======
       function deleteExamination(exam_id) {
         const csrfToken = "{{ csrf_token }}"; // CSRF token from Django context
         const url = "{% url 'examination' %}"; // Correctly resolved URL
@@ -196,7 +164,6 @@
         });
       };
     </script>
->>>>>>> Stashed changes
 
   <script src="/static/assets/vendor/chart.js/dist/Chart.min.js"></script>
   <script src="/static/assets/vendor/chart.js/dist/Chart.extension.js"></script>
