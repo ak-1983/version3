@@ -539,15 +539,21 @@ def examination(request):
     elif request.method == 'DELETE':
         if request.user.is_staff:
             data = request.body.decode('utf-8')
-            exam_id = int(json.loads(data)['exam_id'])
-            exam = Exam.objects.get(id=exam_id)
-            print(exam)
-            try:
-                exam.delete()
-                messages.success(request, 'Exam deleted successfully!')
-            except Exception as e:
-                messages.error(request, f'An error occurred: {str(e)}')
-            return redirect('home')
+            if data:
+                try:
+                    exam_id = json.loads(data)['exam_id']
+                    exam = Exam.objects.get(id=exam_id)
+                    exam.delete()
+                    messages.success(request, 'Exam deleted successfully!')
+                except json.JSONDecodeError:
+                    messages.error(request, 'Invalid JSON data.')
+                except Exam.DoesNotExist:
+                    messages.error(request, 'Exam not found.')
+                except Exception as e:
+                    messages.error(request, f'An error occurred: {str(e)}')
+            else:
+                messages.error(request, 'No data provided.')
+            return redirect('examination')
     else:
         messages.error(request, 'Invalid request method.')
         return redirect('home')
