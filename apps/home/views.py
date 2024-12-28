@@ -9,7 +9,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
 from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect
-from .models import Course, Batch, StudentEnrollment, Exam, Document, Statistics, Incentivization, TeachingAssistantAssociation, UIDMapping
+from .models import Course, Batch, StudentEnrollment, Exam, Statistics, Incentivization, TeachingAssistantAssociation, UIDMapping
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render, redirect
 from django.contrib import messages
