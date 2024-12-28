@@ -19,10 +19,14 @@ from django.db import IntegrityError
 import random
 import csv
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+from django.db.models import ExpressionWrapper, F, DateTimeField
+from django.utils import timezone
+import pytz
 
-def is_superuser(user):
-    return user.is_superuser
+def is_superuser(self):
+    return self.is_superuser
+User.add_to_class('is_superuser', is_superuser)
 
 
 # Overwrite User table from django to add method is_student
@@ -35,6 +39,11 @@ User.add_to_class('is_student', is_student)
 def is_staff(self):
     return self.is_staff
 User.add_to_class('is_staff', is_staff)
+
+
+def is_teacher(self):
+    return self.is_staff and not self.is_superuser
+User.add_to_class('is_teacher', is_teacher)
 
 
 
@@ -146,8 +155,24 @@ def index(request):
                 'is_enrolled': batch.id in enrolled_courses,
                 'is_accepted': batch.id in StudentEnrollment.objects.filter(student=request.user, approval_status=True).values_list('batch', flat=True)
             })
-        exams = Exam.objects.filter(batch__in=batches).order_by('date')
-        context = {'segment': 'index', 'courses': batches_list, 'is_ta': len(tas) > 0, 'exams': exams}
+        # Define the India timezone
+        india_timezone = pytz.timezone('Asia/Kolkata')
+
+        # Get the current time in IST
+        current_time = timezone.now().astimezone(india_timezone)
+        exams = Exam.objects.filter(batch__in=batches)
+        active_exams = []
+
+        for exam in exams:
+            if exam.date.tzinfo is None:
+                exam_date = timezone.make_aware(exam.date, timezone=pytz.UTC)
+            else:
+                exam_date = exam.date
+            exam_date = exam_date.astimezone(india_timezone) - timedelta(hours=5, minutes=30)
+            expiration_time = exam_date + timedelta(minutes=exam.duration)
+            if exam_date <= current_time <= expiration_time:
+                active_exams.append(exam)
+        context = {'segment': 'index', 'courses': batches_list, 'is_ta': len(tas) > 0, 'exams': active_exams}
         html_template = loader.get_template('home/student/index.html')
         return HttpResponse(html_template.render(context, request))
 
