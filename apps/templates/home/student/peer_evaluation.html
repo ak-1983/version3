@@ -3,7 +3,71 @@
 {% block title %} Evaluatation {% endblock title %}
 
 <!-- Specific CSS goes HERE -->
-{% block stylesheets %}{% endblock stylesheets %}
+{% block stylesheets %}
+<style>
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+  
+    .overlay-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      width: 70%;
+      height: 90%;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+  
+    .content-wrapper {
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+  
+    .left-pane {
+      flex: 1;
+      padding: 10px;
+      border-right: 1px solid #ddd;
+      overflow: auto;
+    }
+  
+    .right-pane {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+  
+    .overlay-content .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+  
+    iframe {
+      border: none;
+    }
+  
+    .form-group {
+      margin-bottom: 15px;
+    }
+  
+    .form-group label {
+      font-weight: bold;
+    }
+  </style>
+  
+{% endblock stylesheets %}
 
 {% block content %}
 
@@ -44,48 +108,68 @@
                   <tr>
                     <th scope="col">Evaluate</th>
                     <th scope="col">Check Status</th>
-                    
                   </tr>
                 </thead>
                 <tbody>
-                  {% for course in courses %}
-                  <tr>
-                    <td>{{ course.name }}</td>
-                    <td>{{ course.description }}</td>
-                    <td>{{ course.batch }}</td>
-                    <td>{{ course.start_date|date:"M d, Y" }}</td>
-                    <td>{{ course.end_date|date:"M d, Y" }}</td>
-                    <td>
-                      {% if course.is_enrolled %}
-                        {% if not course.is_accepted %}
-                          <form method="POST" action="{% url 'enrollment' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="batch_id" value="{{ course.batchID }}">
-                            <button type="submit" class="btn btn-sm btn-danger">Un-Enroll</button>
-                          </form>
-                        {% else %}
-                          <button class="btn btn-sm btn-success">Accepted</button>
-                        {% endif %}
-                      {% else %}
-                        <form method="POST" action="{% url 'enrollment' %}">
-                          {% csrf_token %}
-                          <input type="hidden" name="batch_id" value="{{ course.batchID }}">
-                          <button type="submit" class="btn btn-sm btn-primary">Enroll</button>
-                        </form>
-                      {% endif %}
-                    </td>
-                  </tr>
-                  {% endfor %}
-                  {% if evaluation|length == 0 %} <!-- If please replace evaluation with the logic for the list which  -->
-                  <tr>
-                    <td colspan="5" class="text-center">No pending enrollments</td>
-                  </tr>
-                  {% endif %}
-                </tbody>
+                    {% load static %}
+                    <tr>
+                      <td>
+                        <button 
+                          type="button" 
+                          class="btn btn-sm btn-primary" 
+                          onclick="openPDFOverlay('{% static 'pdfs/Arunav.1024.pdf' %}')">
+                          Evaluate
+                        </button>
+                      </td>
+                      <td><span class="badge badge-success">Evaluated</span></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <button 
+                          type="button" 
+                          class="btn btn-sm btn-primary" 
+                          onclick="openOverlay('Science', 'Batch B')">
+                          Evaluate
+                        </button>
+                      </td>
+                      <td><span class="badge badge-danger">Not Evaluated</span></td>
+                    </tr>
+                  </tbody>  
               </table>
+              
+              
+              <!-- Overlay for PDF and Evaluation Form -->
+                <div id="pdfOverlay" class="overlay">
+                    <div class="overlay-content">
+                    <button class="btn btn-danger close-btn" onclick="closeOverlay()">Close</button>
+                    <div class="content-wrapper">
+                        <!-- Left: PDF Viewer -->
+                        <div class="left-pane">
+                        <iframe id="pdfFrame" src="" style="width: 100%; height: 100%;" frameborder="0"></iframe>
+                        </div>
+                        <!-- Right: Dummy Evaluation Form -->
+                        <div class="right-pane">
+                        <h4>Evaluation Form</h4>
+                        <form id="evaluationForm">
+                            <div class="form-group">
+                            <label for="evaluationScore">Score</label>
+                            <input type="number" id="evaluationScore" class="form-control" placeholder="Enter Score">
+                            </div>
+                            <div class="form-group">
+                            <label for="evaluationRemarks">Remarks</label>
+                            <textarea id="evaluationRemarks" class="form-control" rows="5" placeholder="Enter Remarks"></textarea>
+                            </div>
+                            <button type="button" class="btn btn-success" onclick="submitEvaluation()">Submit</button>
+                        </form>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+    
         <div class="col-xl-6">
           <div class="card" style="height: 400px; width: 100%;">
             <div class="card-header border-0">
@@ -113,7 +197,7 @@
         </div>
 
       {% include "includes/footer.html" %}
-
+      
     </div>
 
 {% endblock content %}
@@ -189,7 +273,29 @@ function resetForm() {
 }
 
   </script>
-
+  <script>
+    // Open the PDF overlay and load the PDF
+    function openPDFOverlay(pdfUrl) {
+      const pdfFrame = document.getElementById('pdfFrame');
+      pdfFrame.src = pdfUrl; // Set the PDF URL
+      document.getElementById('pdfOverlay').style.display = 'flex'; // Show overlay
+    }
+  
+    // Close the overlay
+    function closeOverlay() {
+      document.getElementById('pdfOverlay').style.display = 'none';
+      const pdfFrame = document.getElementById('pdfFrame');
+      pdfFrame.src = ''; // Clear the iframe source
+    }
+  
+    // Submit the evaluation
+    function submitEvaluation() {
+      const score = document.getElementById('evaluationScore').value;
+      const remarks = document.getElementById('evaluationRemarks').value;
+      alert(`Evaluation submitted:\nScore: ${score}\nRemarks: ${remarks}`);
+      closeOverlay();
+    }
+  </script>
   <script src="/static/assets/vendor/chart.js/dist/Chart.min.js"></script>
   <script src="/static/assets/vendor/chart.js/dist/Chart.extension.js"></script>
 
