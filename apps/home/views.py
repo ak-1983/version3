@@ -534,3 +534,7 @@ def examination(request):
     else:
         messages.error(request, 'Invalid request method.')
         return 
+    
+@login_required
+def peer_evaluation(request):
+    return render(request, 'home/student/peer_evaluation.html')

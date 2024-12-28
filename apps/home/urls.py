@@ -16,6 +16,7 @@ urlpatterns = [
     path('/enrollment', views.enrollment, name='enrollment'),
     path('ta_hub/', views.ta_hub, name='ta_hub'),
     path('examination/', views.examination, name='examination'),
+    path('peer_eval/', views.peer_evaluation, name='peer_evaluation'),
 
     re_path(r'^.*\.*', views.pages, name='pages'),
 ]
