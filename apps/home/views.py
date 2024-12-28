@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 from django.db.models import ExpressionWrapper, F, DateTimeField
 from django.utils import timezone
 import pytz
+from .ocr import *
 
 def is_superuser(self):
     return self.is_superuser
@@ -559,7 +560,30 @@ def examination(request):
     else:
         messages.error(request, 'Invalid request method.')
         return 
-    
+
+
 @login_required
 def peer_evaluation(request):
     return render(request, 'home/student/peer_evaluation.html')
+
+
+@login_required
+def upload_evaluation(request):
+    if request.method == "POST":
+        # Ensure the uploaded file is properly retrieved
+        uploaded_file = request.FILES.get("evaluationfile")[0]
+        if uploaded_file:
+            # Check the file type
+            if uploaded_file.content_type == "application/pdf":
+                # Save the file to the "evaluations" directory
+                with open(f"evaluations/{uploaded_file.name}", "wb") as f:
+                    for chunk in uploaded_file.chunks():
+                        number, file = process_uploaded_pdf(uploaded_file)
+                        f.write(file)
+                return render(request, "home/student/peer_evaluation.html", {"success": "File uploaded successfully."})
+            else:
+                return render(request, "home/student/peer_evaluation.html", {"error": "Invalid file type. Please upload a PDF file."})
+        else:
+            return render(request, "home/student/peer_evaluation.html", {"error": "No file was uploaded. Please try again."})
+
+    return render(request, "home/student/peer_evaluation.html")

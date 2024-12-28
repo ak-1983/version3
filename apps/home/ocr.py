@@ -40,7 +40,7 @@ def process_uploaded_pdf(uploaded_file):
         recognised_text = pytesseract.image_to_string(cropped_image, config='--psm 6')
 
         # Extract a number from the OCR text
-        extracted_number = re.search(r'\b\d{3}\b', recognised_text)
+        extracted_number = re.search(r'\b\d{4}\b', recognised_text)
         if not extracted_number:
             raise Exception("No number found in OCR output")
 
