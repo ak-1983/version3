@@ -134,16 +134,29 @@ class TeachingAssistantAssociation(models.Model):
     def is_ta(user, batch):
         return TeachingAssistantAssociation.objects.filter(teaching_assistant=user, batch=batch).exists()
 
-# class LLMEvaluation(models.Model):
-#     id = models.AutoField(primary_key=True)
-#     CourseTopic = models.ForeignKey('CourseTopics', on_delete=models.CASCADE)
-#     student = models.ForeignKey(User, on_delete=models.CASCADE)
-#     answer = models.TextField()
-#     feedback = models.TextField()
-#     score = models.TextField()
-#     ai = models.TextField()
-#     aggregate = models.IntegerField()
-#     date = models.DateTimeField(auto_now_add=True)
 
-#     def __str__(self):
-#         return f'LLM Evaluation for {self.student.username}'
+class CourseTopic(models.Model):
+    id = models.AutoField(primary_key=True)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE)
+    topic = models.CharField(max_length=255)
+    date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.topic
+
+
+class LLMEvaluation(models.Model):
+    id = models.AutoField(primary_key=True)
+    Topic = models.ForeignKey(CourseTopic, on_delete=models.CASCADE)
+    student = models.ForeignKey(User, on_delete=models.CASCADE)
+    answer = models.TextField()
+    feedback = models.TextField()
+    score = models.TextField()
+    ai = models.TextField()
+    aggregate = models.IntegerField()
+    date = models.DateTimeField(auto_now_add=True)
+
+
+    def __str__(self):
+        return f'LLM Evaluation for {self.student.username}'
