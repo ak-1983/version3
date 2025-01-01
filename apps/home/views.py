@@ -33,6 +33,9 @@ import tempfile
 from PyPDF2 import PdfMerger
 import os
 from io import BytesIO
+import networkx as nx
+import math
+
 
 def is_superuser(self):
     return self.is_superuser
@@ -92,6 +95,134 @@ def convert_pdf_to_image_and_decode_qr(pdf_bytes):
     except Exception as e:
         print(f"Error processing PDF: {e}")
         raise
+
+
+
+def capacity_from_incentive(incentive, base_k):
+
+    if incentive < 0.1:
+        return base_k
+    elif 0.10 <= incentive <= 0.30:
+        return math.ceil(base_k * 1.2)
+    elif 0.31 <= incentive <= 0.50:
+        return math.ceil(base_k * 1.3)
+    elif 0.51 <= incentive <= 0.70:
+        return math.ceil(base_k * 1.4)
+    elif 0.71 <= incentive <= 0.95:
+        return math.ceil(base_k * 1.45)
+    else:  # 0.96 <= incentive <= 1.0
+        return math.ceil(base_k * 1.5)
+
+
+def assign_papers(
+        peers, papers,
+        k=3,
+        incentives=None,
+        paper_capacity=None
+):
+    """
+    Assign each paper to exactly k distinct peers if possible (3 by default).
+    Each peer can't review its own paper. Peers may have different capacities
+    depending on a 'trusted incentive'.
+
+    :param peers:    list of peer IDs, e.g. ["A1","A2",..., "A26"]
+    :param papers:   list of paper IDs, e.g. ["P1","P2",..., "P26"]
+                     (same length as peers)
+    :param k:        default #papers each peer can review (3 by default).
+    :param incentives:
+        - a dict {peerID -> float_in_[0,1]} or a list of floats
+          (must be same length as peers). If None, all peers have capacity=k.
+    :param paper_capacity:
+        - how many distinct reviewers each paper can have.
+          default to k=3, but you can raise it if, for instance,
+          you want to allow more than 3 reviewers per paper.
+
+    :return:
+        If a valid assignment is found:
+          list of (peerID, paperID) pairs.
+        Else None.
+    """
+    if len(peers) != len(papers):
+        raise ValueError("Number of peers and papers must match.")
+
+    n = len(peers)
+    if paper_capacity is None:
+        paper_capacity = k  # typically 3
+
+    # Build a directed graph for the flow network
+    G = nx.DiGraph()
+    source = "S"
+    sink = "T"
+    G.add_node(source)
+    G.add_node(sink)
+
+    # We'll create nodes for each peer (left side) and each paper (right side).
+    peer_nodes = [f"peer_{i}" for i in range(n)]
+    paper_nodes = [f"paper_{i}" for i in range(n)]
+
+    # A helper to get capacity for each peer based on incentive
+    def get_peer_capacity(idx):
+        if incentives is None:
+            return k
+        # If incentives is a dict, get by key. If it's a list, use index.
+        inc = incentives[peers[idx]] if isinstance(incentives, dict) else incentives[idx]
+        return capacity_from_incentive(inc, k)
+
+    # 1) Source -> Peer edges
+    #    capacity = how many papers this peer can review (k or more if trusted).
+    for i, pn in enumerate(peer_nodes):
+        cap = get_peer_capacity(i)
+        G.add_edge(source, pn, capacity=cap)
+
+    # 2) Paper -> Sink edges
+    #    capacity = how many distinct reviews we want for this paper (usually k).
+    for j, ppr in enumerate(paper_nodes):
+        G.add_edge(ppr, sink, capacity=paper_capacity)
+
+    # 3) Peer -> Paper edges
+    #    capacity=1 if the peer is not the owner of that paper.
+    #    We rely on the naming convention to check if "A1" matches "P1", etc.
+    for i, peerID in enumerate(peers):
+        for j, paperID in enumerate(papers):
+            # We assume "A1" owns "P1" (matching the numeric portion).
+            # So let's parse out the numeric suffix and compare:
+            # e.g. "A26" -> 26; "P26" -> 26
+            # If they match, skip the edge (can't self-review).
+
+            # Simple approach: compare everything after the letter
+            # (assuming the format "A##", "P##").
+            peer_num = peerID[1:]  # "1", "2", "26", ...
+            paper_num = paperID[1:]  # "1", "2", "26", ...
+
+            if peer_num != paper_num:
+                # Add edge with capacity=1
+                G.add_edge(peer_nodes[i], paper_nodes[j], capacity=1)
+
+    # 4) Compute max flow
+    flow_value, flow_dict = nx.maximum_flow(G, source, sink)
+
+    # We want each paper to get 'paper_capacity' reviews, so the total
+    # desired flow is paper_capacity * n. If flow_value < that, we failed.
+    if flow_value < paper_capacity * n:
+        return None
+
+    # 5) Extract the assignment from the flow dictionary
+    #    For each peer->paper edge that has flow=1, that means
+    #    "peer i is assigned to paper j".
+    assignments = []
+
+    for i, pn in enumerate(peer_nodes):
+        out_edges = flow_dict[pn]  # dict of {paper_node: flow_amt}
+        for ppr_node, amt in out_edges.items():
+            if amt > 0 and ppr_node.startswith("paper_"):
+                # Identify which paper index that node is
+                paper_idx = int(ppr_node.split("_")[1])
+                # We have an assignment: peer i -> paper paper_idx
+                assignments.append((peers[i], papers[paper_idx]))
+
+    return assignments
+
+
 
 
 @login_required(login_url="/login/")
@@ -260,11 +391,12 @@ def generate_string():
 
 @login_required
 def enroll_course(request):
+
     if request.method == 'POST':
         course_id = request.POST.get('course_id')
         try:
             course = Course.objects.get(course_id=course_id)
-            batch = Batch.objects.filter(course=course).first()  # Assuming a batch exists for the course
+            batch = Batch.objects.filter(course=course).first()
             if batch:
                 StudentEnrollment.objects.get_or_create(
                     student=request.user,
@@ -520,12 +652,13 @@ def generate_student_pdf(student, exam, n_extra_pages):
 
 @user_passes_test(is_staff)
 def download_answer_sheets(request):
+
     if request.method == 'POST':
         try:
             # Get the exam and number of extra pages
             exam_id = request.POST.get('exam_id')
             n_extra_pages = int(request.POST.get('n_extra_pages', 5))  # Default to 1 extra page
-            
+
             exam = Exam.objects.get(id=exam_id)
             students = UIDMapping.objects.filter(exam=exam)
             
@@ -568,7 +701,7 @@ def download_answer_sheets(request):
             
         except Exception as e:
             messages.error(request, f'Error generating PDFs: {str(e)}')
-            return redirect('home')
+            return redirect('examination')
     
     messages.error(request, 'Invalid request method.')
     return redirect('home')
@@ -586,9 +719,7 @@ def enrollment(request):
             if role == "TA":
                 username = str(json.loads(data)['student_username'])
                 action = json.loads(data)['student_action']
-                print(role, username, action)
                 username = User.objects.get(email=username)
-                print(username, action)
                 studentenrollment = StudentEnrollment.objects.filter(batch_id=batch_id, student__username=username).first()
                 print(studentenrollment)
                 if studentenrollment:
@@ -716,22 +847,22 @@ def examination(request):
             num_que = int(data["num_que"])
             max_marks = int(data["max_marks"])
             k = int(data['k'])
+            students_in_batch = StudentEnrollment.objects.filter(batch_id=batch_id)
             new_exam = Exam.objects.update_or_create(batch_id=batch_id,
+                                                     completed=False,
                                                         defaults={
                                                             'date': exam_date,
                                                             'duration': exam_duration,
                                                             'number_of_questions': num_que,
                                                             'max_scores': max_marks,
                                                             'k': k,
+                                                            'total_students': len(students_in_batch),
                                                             'completed': False,
                                                         })
             if new_exam[1]:
-                print("Updated exam")
                 messages.success(request, 'Exam updated successfully!')
             else:
-                print("Created exam")
                 messages.success(request, 'Exam created successfully!')
-            students_in_batch = StudentEnrollment.objects.filter(batch_id=batch_id)
             for student in students_in_batch:
                 UIDMapping.objects.update_or_create(user=student.student,
                                                     exam=new_exam[0],
@@ -760,6 +891,29 @@ def examination(request):
             else:
                 messages.error(request, 'No data provided.')
             return redirect('examination')
+    
+    
+    elif request.method == 'PUT':
+        if request.user.is_staff:
+            data = request.body.decode('utf-8')
+            if data:
+                try:
+                    exam_id = json.loads(data)['exam_id']
+                    exam = Exam.objects.get(id=exam_id)
+                    exam.completed = True
+                    exam.save()
+                    messages.success(request, 'Exam completed successfully!')
+                except json.JSONDecodeError:
+                    messages.error(request, 'Invalid JSON data.')
+                except Exam.DoesNotExist:
+                    messages.error(request, 'Exam not found.')
+                except Exception as e:
+                    messages.error(request, f'An error occurred: {str(e)}')
+            else:
+                messages.error(request, 'No data provided.')
+            return redirect('examination')
+
+
     else:
         messages.error(request, 'Invalid request method.')
         return 

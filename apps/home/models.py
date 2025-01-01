@@ -25,6 +25,10 @@ class Batch(models.Model):
 
     def __str__(self):
         return f"{self.batch_id} - {self.course.name} ({self.teacher.username})"
+    
+    @property
+    def enrolled_students_count(self):
+        return StudentEnrollment.objects.get(batch=self).count()
 
 
 # Exam Model
@@ -36,10 +40,15 @@ class Exam(models.Model):
     duration = models.IntegerField(help_text="Duration of the exam in minutes")
     max_scores = models.IntegerField()
     k = models.IntegerField(help_text="Number of evaluations for student")
+    total_students = models.IntegerField(help_text="Total number of students in the batch")
     completed = models.BooleanField(default=False, help_text="Indicates whether the exam is completed")
 
     def __str__(self):
         return f"{self.batch.batch_id}"
+    
+    @property
+    def evaluation_received(self):
+        return Documents.objects.filter(exam=self).count()
     
 class UIDMapping(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="uid_mappings")
