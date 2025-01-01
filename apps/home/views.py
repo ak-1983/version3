@@ -769,6 +769,15 @@ def examination(request):
 def peer_evaluation(request):
     return render(request, 'home/student/peer_evaluation.html')
 
+@login_required
+def analytics(request):
+    data = {
+        "students": ["John", "Emma", "Sophia", "Mike", "Sarah"],
+        "marks": [75, 85, 90, 65, 80]
+    }  # Pass any data needed in the template
+    return render(request, 'home/teacher/analytics.html', data)
+
+
 
 @login_required
 def upload_evaluation(request):
