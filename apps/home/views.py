@@ -4,7 +4,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
 from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect
-from .models import Course, Batch, StudentEnrollment, Exam, Statistics, Incentivization, TeachingAssistantAssociation, UIDMapping, Documents
+from .models import Course, Batch, StudentEnrollment, Exam, Statistics, Incentivization, TeachingAssistantAssociation, UIDMapping, Documents, PeerEvaluation
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -35,6 +35,85 @@ import os
 from io import BytesIO
 import networkx as nx
 import math
+import google.generativeai as genai
+
+
+genai.configure(api_key="AIzaSyBrat_wDHdrOGboCJfT-mYhyD_dpqipsbM")
+
+def geminiGenerate(prompt):
+    model = genai.GenerativeModel('gemini-1.5-pro')
+    response = model.generate_content(prompt)
+    return response.text
+
+
+def parse_llama_json(text):
+    # Extract JSON part from the generated text
+    start_idx = text.find('{')
+    end_idx = text.rfind('}') + 1
+
+    if start_idx == -1 or end_idx == -1:
+        raise ValueError("No valid JSON found in the text")
+
+    json_part = text[start_idx:end_idx]
+
+    # Parse the extracted JSON
+    try:
+        parsed_data = json.loads(json_part)
+        return parsed_data
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse JSON: {e}")
+
+
+def evaluate_answers(answer1, answer2, topic):
+    prompt = f"""
+    The topic of discussion was: """ + topic + """. I want to evaluate the following student answers:
+    
+    **Task:** As an AI Assistant, assess the answers provided based on their originality, quality, and relevance to the topic. Also, evaluate the percentage of AI-generated content in the answers. Provide the output in **JSON format** with the following structure:
+    
+    **Evaluation Criteria:**
+    1. **Score (0 to 10):** Reflects the quality, depth, and relevance of the answer.
+    2. **AI Plagiarism Score (0 to 1):** Indicates the likelihood of the content being AI-generated or plagiarized from online sources.
+
+    **Expected JSON Response Format:**
+    ```json
+    {
+        "question 1": {
+            "score": <quality_score_between_0_to_10>,
+            "ai": <ai_plagiarism_score_between_0_to_10>,
+            "feedback": "<optional_feedback_message>"
+        },
+        "question 2": {
+            "score": <quality_score_between_0_to_10>,
+            "ai": <ai_plagiarism_score_between_0_to_10>
+            "feedback": "<optional_feedback_message>"
+        }
+    }
+    ```
+    
+    **Student Answers:**
+    - Question 1: """ + answer1 + """
+    - Question 2: """ + answer2 + """
+
+    Ensure the response strictly follows the JSON format and provides clear scores for each answer.
+    """
+
+    scores = parse_llama_json(geminiGenerate(prompt))
+
+    # Calculate aggregate score (penalizing AI plagiarism)
+    aggregate_score = (
+        (scores['question 1']['score'] * (1 - scores['question 1']['ai'])) +
+        (scores['question 2']['score'] * (1 - scores['question 2']['ai']))
+    )/2
+
+    # Return the aggregate results
+    return {
+        "aggregate_score": round(aggregate_score, 2),
+        "answers": " ".join([answer1, answer2]),
+        "feedback": " ".join([scores['question 1']['feedback'], scores['question 2']['feedback']]),
+        "ai_scores": [scores['question 1']['ai'], scores['question 2']['ai']],
+        "scores": [scores['question 1']['score'], scores['question 2']['score']]
+    }
+
 
 
 def is_superuser(self):
@@ -97,6 +176,40 @@ def convert_pdf_to_image_and_decode_qr(pdf_bytes):
         raise
 
 
+# Generate UID
+def generate_string():
+
+    MAX_LEN = 12
+
+    DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+
+    LOCASE_CHARACTERS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 
+                        'i', 'j', 'k', 'm', 'n', 'o', 'p', 'q',
+                        'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
+                        'z']
+
+    UPCASE_CHARACTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 
+                        'I', 'J', 'K', 'M', 'N', 'O', 'P', 'Q',
+                        'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y',
+                        'Z']
+
+    COMBINED_LIST = DIGITS + UPCASE_CHARACTERS + LOCASE_CHARACTERS
+
+    rand_digit = random.choice(DIGITS)
+    rand_upper = random.choice(UPCASE_CHARACTERS)
+    rand_lower = random.choice(LOCASE_CHARACTERS)
+
+    temp_pass = rand_digit + rand_upper + rand_lower
+    for x in range(MAX_LEN - 4):
+        temp_pass = temp_pass + random.choice(COMBINED_LIST)
+        temp_pass_list = array.array('u', temp_pass)
+        random.shuffle(temp_pass_list)
+    password = ""
+    for x in temp_pass_list:
+            password = password + x
+
+    return (password)
+
 
 def capacity_from_incentive(incentive, base_k):
 
@@ -114,117 +227,87 @@ def capacity_from_incentive(incentive, base_k):
         return math.ceil(base_k * 1.5)
 
 
-def assign_papers(
-        peers, papers,
-        k=3,
-        incentives=None,
-        paper_capacity=None
-):
-    """
-    Assign each paper to exactly k distinct peers if possible (3 by default).
-    Each peer can't review its own paper. Peers may have different capacities
-    depending on a 'trusted incentive'.
+def assign_papers(peers, papers, k=2, incentives=0, paper_capacity=None, exam=None):
 
-    :param peers:    list of peer IDs, e.g. ["A1","A2",..., "A26"]
-    :param papers:   list of paper IDs, e.g. ["P1","P2",..., "P26"]
-                     (same length as peers)
-    :param k:        default #papers each peer can review (3 by default).
-    :param incentives:
-        - a dict {peerID -> float_in_[0,1]} or a list of floats
-          (must be same length as peers). If None, all peers have capacity=k.
-    :param paper_capacity:
-        - how many distinct reviewers each paper can have.
-          default to k=3, but you can raise it if, for instance,
-          you want to allow more than 3 reviewers per paper.
-
-    :return:
-        If a valid assignment is found:
-          list of (peerID, paperID) pairs.
-        Else None.
-    """
     if len(peers) != len(papers):
         raise ValueError("Number of peers and papers must match.")
 
     n = len(peers)
     if paper_capacity is None:
-        paper_capacity = k  # typically 3
+        paper_capacity = k
 
-    # Build a directed graph for the flow network
+    # Create a directed graph for the assignment problem
     G = nx.DiGraph()
     source = "S"
     sink = "T"
     G.add_node(source)
     G.add_node(sink)
 
-    # We'll create nodes for each peer (left side) and each paper (right side).
-    peer_nodes = [f"peer_{i}" for i in range(n)]
-    paper_nodes = [f"paper_{i}" for i in range(n)]
+    # Peer and paper nodes
+    peer_nodes = [f"{peer.username}_{UIDMapping.objects.get(user=peer).uid}" for peer in peers]
+    paper_nodes = [f"paper_{paper.uid}" for paper in papers]
+    print(peer_nodes)
+    print(paper_nodes)
 
-    # A helper to get capacity for each peer based on incentive
+    # Helper function to get capacity for each peer
     def get_peer_capacity(idx):
         if incentives is None:
             return k
-        # If incentives is a dict, get by key. If it's a list, use index.
         inc = incentives[peers[idx]] if isinstance(incentives, dict) else incentives[idx]
         return capacity_from_incentive(inc, k)
 
-    # 1) Source -> Peer edges
-    #    capacity = how many papers this peer can review (k or more if trusted).
-    for i, pn in enumerate(peer_nodes):
+    # Add edges from source to peers
+    for i, peer in enumerate(peer_nodes):
         cap = get_peer_capacity(i)
-        G.add_edge(source, pn, capacity=cap)
+        G.add_edge(source, peer, capacity=cap)
 
-    # 2) Paper -> Sink edges
-    #    capacity = how many distinct reviews we want for this paper (usually k).
-    for j, ppr in enumerate(paper_nodes):
-        G.add_edge(ppr, sink, capacity=paper_capacity)
+    # Add edges from papers to sink
+    for paper in paper_nodes:
+        G.add_edge(paper, sink, capacity=paper_capacity)
 
-    # 3) Peer -> Paper edges
-    #    capacity=1 if the peer is not the owner of that paper.
-    #    We rely on the naming convention to check if "A1" matches "P1", etc.
-    for i, peerID in enumerate(peers):
-        for j, paperID in enumerate(papers):
-            # We assume "A1" owns "P1" (matching the numeric portion).
-            # So let's parse out the numeric suffix and compare:
-            # e.g. "A26" -> 26; "P26" -> 26
-            # If they match, skip the edge (can't self-review).
-
-            # Simple approach: compare everything after the letter
-            # (assuming the format "A##", "P##").
-            peer_num = peerID[1:]  # "1", "2", "26", ...
-            paper_num = paperID[1:]  # "1", "2", "26", ...
-
-            if peer_num != paper_num:
-                # Add edge with capacity=1
+    # Add edges between peers and papers
+    for i, peerID in enumerate(peer_nodes):
+        for j, paperID in enumerate(paper_nodes):
+            peer_num= peerID[-11:]
+            paper_num= paperID[-11:]
+            if peer_num != paper_num:  # Avoid self-assignment
                 G.add_edge(peer_nodes[i], paper_nodes[j], capacity=1)
 
-    # 4) Compute max flow
+    # Solve the maximum flow problem
     flow_value, flow_dict = nx.maximum_flow(G, source, sink)
 
-    # We want each paper to get 'paper_capacity' reviews, so the total
-    # desired flow is paper_capacity * n. If flow_value < that, we failed.
     if flow_value < paper_capacity * n:
-        return None
+        raise ValueError("Unable to assign all papers to evaluators with the given constraints.")
 
-    # 5) Extract the assignment from the flow dictionary
-    #    For each peer->paper edge that has flow=1, that means
-    #    "peer i is assigned to paper j".
+    # Create assignments and corresponding PeerEvaluation entries
     assignments = []
+    for peer_idx, peer_name in enumerate(peer_nodes):
+        out_edges = flow_dict[peer_name]  # Get assigned papers for the peer
+        peer_user = peers[peer_idx]
+        for paper_node, flow in out_edges.items():
+            if flow > 0 and paper_node.startswith("paper_"):
+                paper_obj = paper_node
 
-    for i, pn in enumerate(peer_nodes):
-        out_edges = flow_dict[pn]  # dict of {paper_node: flow_amt}
-        for ppr_node, amt in out_edges.items():
-            if amt > 0 and ppr_node.startswith("paper_"):
-                # Identify which paper index that node is
-                paper_idx = int(ppr_node.split("_")[1])
-                # We have an assignment: peer i -> paper paper_idx
-                assignments.append((peers[i], papers[paper_idx]))
+                assignments.append((peer_user, paper_obj))
+
+                # Add PeerEvaluation entry
+                PeerEvaluation.objects.create(
+                    evaluator=peer_user,
+                    student=UIDMapping.objects.get(exam=exam, uid=paper_obj.split('_')[1]).user,
+                    exam=exam,
+                    document=Documents.objects.get(uid=paper_obj.split('_')[1]),
+                    uid=paper_obj.split('_')[1],
+                    feedback="",  # Default empty feedback
+                    score="",  # Default empty score
+                    evaluated_on=datetime.now(),
+                    deadline=datetime.now() + timedelta(days=7),
+                )
 
     return assignments
 
 
 
-
+# NOTE: This function renders dashboard for all the roles
 @login_required(login_url="/login/")
 def index(request):
     # Handle login for Admin
@@ -355,63 +438,6 @@ def index(request):
         return HttpResponse(html_template.render(context, request))
 
 
-def generate_string():
-
-    MAX_LEN = 12
-
-    DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-
-    LOCASE_CHARACTERS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 
-                        'i', 'j', 'k', 'm', 'n', 'o', 'p', 'q',
-                        'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
-                        'z']
-
-    UPCASE_CHARACTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 
-                        'I', 'J', 'K', 'M', 'N', 'O', 'P', 'Q',
-                        'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y',
-                        'Z']
-
-    COMBINED_LIST = DIGITS + UPCASE_CHARACTERS + LOCASE_CHARACTERS
-
-    rand_digit = random.choice(DIGITS)
-    rand_upper = random.choice(UPCASE_CHARACTERS)
-    rand_lower = random.choice(LOCASE_CHARACTERS)
-
-    temp_pass = rand_digit + rand_upper + rand_lower
-    for x in range(MAX_LEN - 4):
-        temp_pass = temp_pass + random.choice(COMBINED_LIST)
-        temp_pass_list = array.array('u', temp_pass)
-        random.shuffle(temp_pass_list)
-    password = ""
-    for x in temp_pass_list:
-            password = password + x
-
-    return (password)
-
-
-@login_required
-def enroll_course(request):
-
-    if request.method == 'POST':
-        course_id = request.POST.get('course_id')
-        try:
-            course = Course.objects.get(course_id=course_id)
-            batch = Batch.objects.filter(course=course).first()
-            if batch:
-                StudentEnrollment.objects.get_or_create(
-                    student=request.user,
-                    course=course,
-                    batch=batch,
-                    defaults=random.randint(10000, 99999)
-                )
-                messages.success(request, f"Successfully enrolled in {course.name}")
-            else:
-                messages.error(request, "No batch available for this course")
-        except Course.DoesNotExist:
-            messages.error(request, "Course not found")
-    return redirect('student_enrollment')
-
-
 # Invalid URL
 @login_required(login_url="/login/")
 def pages(request):
@@ -484,6 +510,7 @@ def course(request):
             messages.error(request, f'An error occurred: {str(e)}')
 
         return redirect('home')
+
 
     else:
         messages.error(request, 'Invalid request method.')
@@ -919,9 +946,21 @@ def examination(request):
         return 
 
 
-@login_required
+@user_passes_test(is_staff)
 def peer_evaluation(request):
-    return render(request, 'home/student/peer_evaluation.html')
+
+    if request.method == 'POST':
+        exam_id = json.loads(request.body.decode('utf-8'))['exam_id']
+        exam_instance = Exam.objects.get(id=exam_id)
+        student_enrollment = StudentEnrollment.objects.filter(batch = exam_instance.batch)
+        peers = [student.student for student in student_enrollment]
+        papers = list(Documents.objects.filter(exam=exam_instance))
+        k = 2
+        incentives = {peer: 5 for peer in peers}
+        assignments = assign_papers(peers, papers, k=k, incentives=incentives, exam=exam_instance)
+        print(assignments)
+        return redirect('examination')
+
 
 @login_required
 def analytics(request):
@@ -930,7 +969,6 @@ def analytics(request):
         "marks": [75, 85, 90, 65, 80]
     }  # Pass any data needed in the template
     return render(request, 'home/teacher/analytics.html', data)
-
 
 
 @login_required

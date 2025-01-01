@@ -75,7 +75,7 @@ class PeerEvaluation(models.Model):
     evaluator = models.ForeignKey(User, on_delete=models.CASCADE, related_name="evaluations_made")
     evaluated_on = models.DateTimeField(auto_now_add=True)
     deadline = models.DateTimeField(default=datetime.now() + timedelta(days=7))
-    uid = models.IntegerField(help_text="Unique identifier for the user")
+    uid = models.CharField(max_length=100, help_text="Unique identifier for the user")
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="peer_evaluations")
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name="peer_evaluations")
     document = models.ForeignKey(Documents, on_delete=models.CASCADE, related_name="peer_evaluations")
@@ -134,3 +134,16 @@ class TeachingAssistantAssociation(models.Model):
     def is_ta(user, batch):
         return TeachingAssistantAssociation.objects.filter(teaching_assistant=user, batch=batch).exists()
 
+# class LLMEvaluation(models.Model):
+#     id = models.AutoField(primary_key=True)
+#     CourseTopic = models.ForeignKey('CourseTopics', on_delete=models.CASCADE)
+#     student = models.ForeignKey(User, on_delete=models.CASCADE)
+#     answer = models.TextField()
+#     feedback = models.TextField()
+#     score = models.TextField()
+#     ai = models.TextField()
+#     aggregate = models.IntegerField()
+#     date = models.DateTimeField(auto_now_add=True)
+
+#     def __str__(self):
+#         return f'LLM Evaluation for {self.student.username}'
