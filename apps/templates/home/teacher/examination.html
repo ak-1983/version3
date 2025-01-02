@@ -92,6 +92,9 @@
               <div class="row align-items-center">
                 <div class="col">
                   <h3 class="mb-0">Upload Evaluation</h3>
+                  <p class="mb-0 small">
+                    To upload evaluation in bulk.
+                  </p>
                 </div>
               </div>
             </div>
@@ -103,6 +106,7 @@
                 <!-- Evaluation Selector -->
                 <div class="form-group">
                   <label for="exam" class="form-label font-weight-bold">Evaluation for</label>
+                  <p class="small text-muted mb-0">Batch id - Name of Course - Professor</p>
                   <select id="exam_id" name="exam_id" class="form-control custom-select shadow-sm">
                     {% for exam in exams %}
                       <option value="{{ exam.id }}">{{ exam.batch }}</option>

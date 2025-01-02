@@ -15,5 +15,7 @@ pdf2image
 qrcode
 pyzbar
 sudo
+google
+networkx
 PyPDF2
 # sudo apt install zbar-tools
