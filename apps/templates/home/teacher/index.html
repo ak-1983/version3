@@ -73,10 +73,16 @@
     <div class="container-fluid mt--6">
       <div class="row">
         <div class="col-xl-5">
-          <div class="card" style="max-height: 400px;">
-            <div class="card-header border-0 d-flex justify-content-between">
-              <h3 class="mb-0">Batches</h3>
-              <small class="text-muted">Total Batches: {{ batches|length }}</small>
+          <div class="card">
+            <div class="card-header border-0">
+              <div class="row align-items-center">
+                <div class="col">
+                  <h3 class="mb-0">Batches</h3>
+                  <p class="mb-0 small">
+                    All the batches with number of students enrolled.
+                  </p>
+                </div>
+              </div>
             </div>
             <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
               <table class="table align-items-center table-flush">
@@ -112,7 +118,9 @@
               <div class="row align-items-center">
                 <div class="col">
                   <h3 class="mb-0">Enrolled Students</h3>
-                  <small class="text-muted">Total Students: {{ students|length }}</small>
+                  <p class="mb-0 small">
+                    Details of all the enrolled students.
+                  </p>
                 </div>
               </div>
             </div>
@@ -152,11 +160,16 @@
 
       <div class="row">
         <div class="col-xl-12">
-          <div class="card">
+          <div class="card"><br>
+            <p class="mb-0 small">&nbsp
+              &nbsp &nbsp&nbsp Details of Enrolled TAs
+            </p>
             <div class="card-header border-0 d-flex justify-content-between">
               <h3 class="mb-0">Teaching Assistant <small class="text-muted">(Total TAs: {{ tas|length }})</small></h3>
               <button class="btn btn-sm btn-primary tooltip-trigger" data-tooltip="Click to add a Teaching assistant" data-toggle="modal" data-target="#addTeachingAssistantModal">Enroll TA</button>
             </div>
+            <div>
+              
             <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
               <!-- Students table -->
               <table class="table align-items-center table-flush">
@@ -239,4 +252,20 @@
 {% block javascripts %}
   <script src="/static/assets/vendor/chart.js/dist/Chart.min.js"></script>
   <script src="/static/assets/vendor/chart.js/dist/Chart.extension.js"></script>
+  <script>
+    $(document).ready(function () {
+      // Initialize tooltip on the button
+      $('#blueTooltipBtn').tooltip({
+        // Here we override the default tooltip template with our custom class "my-blue-tooltip"
+        template: `
+          <div class="tooltip my-blue-tooltip" role="tooltip">
+            <div class="arrow"></div>
+            <div class="tooltip-inner"></div>
+          </div>
+        `
+      });
+    });
+  </script>
+  
+  
 {% endblock javascripts %}
