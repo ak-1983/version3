@@ -27,27 +27,19 @@
           {% if is_ta %}
           <li class="nav-item">
             <a class="nav-link {% if 'ta' in segment %} active {% endif %}" href="/ta_hub/">
-              <i class="ni ni-single-02 text-red"></i>
+                <i class="ni ni-hat-3 text-red"></i>
               <span class="nav-link-text">TA Hub</span>
             </a>
           </li>
           {% endif %}
           {% endif %}
           {% if user.is_teacher %}
-          <li class="nav-item">
-            <a class="nav-link {% if 'enrollment' in segment %} active {% endif %}" href="/examination/">
-              <i class="ni ni-bullet-list-67 text-default"></i>
+            <li class="nav-item">
+            <a class="nav-link {% if 'examination' in segment %} active {% endif %}" href="/examination/">
+              <i class="ni ni-single-copy-04 text-default"></i>
               <span class="nav-link-text">Exam Scheduling</span>
             </a>
-          </li>
-          {% endif %}
-          {% if user.is_teacher %}
-          <li class="nav-item">
-            <a class="nav-link {% if 'enrollment' in segment %} active {% endif %}" href="/analytics/">
-              <i class="ni ni-bullet-list-67 text-default"></i>
-              <span class="nav-link-text">Analytics</span>
-            </a>
-          </li>
+            </li>
           {% endif %}
           {% if user.is_student %}
           <li class="nav-item">

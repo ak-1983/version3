@@ -97,7 +97,7 @@
             <div class="card-header border-0">
               <div class="row align-items-center">
                 <div class="col">
-                  <h3 class="mb-0">Evaluate AnswerScripts</h3>
+                  <h3 class="mb-0">Evaluate Answer Scripts</h3>
                 </div>
               </div>
             </div>
@@ -106,98 +106,106 @@
               <table class="table align-items-center table-flush">
                 <thead class="thead-light">
                   <tr>
+                    <th scope="col">Course</th>
+                    <th scope="col">Batch</th>
+                    <th scope="col">Deadline</td>
                     <th scope="col">Evaluate</th>
-                    <th scope="col">Check Status</th>
                   </tr>
                 </thead>
                 <tbody>
                     {% load static %}
-                    <tr>
-                      <td>
-                        <button 
-                          type="button" 
-                          class="btn btn-sm btn-primary" 
-                          onclick="openPDFOverlay('{% static 'pdfs/Arunav.1024.pdf' %}')">
-                          Evaluate
-                        </button>
-                      </td>
-                      <td><span class="badge badge-success">Evaluated</span></td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <button 
-                          type="button" 
-                          class="btn btn-sm btn-primary" 
-                          onclick="openOverlay('Science', 'Batch B')">
-                          Evaluate
-                        </button>
-                      </td>
-                      <td><span class="badge badge-danger">Not Evaluated</span></td>
-                    </tr>
+                    {% for eval in evaluations %}
+                      <tr>
+                        <td>{{ eval.exam.batch.course.name }}</td>
+                        <td>{{ eval.exam.batch.batch_id }}</td>
+                        <td>{{ eval.deadline }}</td>
+                        <td>
+                          {% if eval.score == "" %}
+                            <button
+                              type="button" 
+                              class="btn btn-sm btn-primary" 
+                              onclick="openPDFOverlay('{% static 'documents/' %}{{ eval.document.document }}')">
+                              Evaluate
+                            </button>
+                          {% else %}
+                            <span class="badge badge-success">Evaluated</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+
+                      <div id="pdfOverlay" class="overlay">
+                        <div class="overlay-content">
+                          <button class="btn btn-danger close-btn" onclick="closeOverlay()">Close</button>
+                          <div class="content-wrapper">
+                          <!-- Left: PDF Viewer -->
+                          <div class="left-pane">
+                            <iframe id="pdfFrame" src="" style="width: 100%; height: 100%;" frameborder="0"></iframe>
+                          </div>
+                          <!-- Right: Evaluation Form -->
+                          <div class="right-pane">
+                            <h4>Evaluation Form</h4>
+                            <div class="exam-details mb-4">
+                            <p><strong>Course:</strong> {{ eval.exam.batch.course.name }}</p>
+                            <p><strong>Batch:</strong> {{ eval.exam.batch.batch_id }}</p>
+                            <p><strong>Total Questions:</strong> {{ eval.exam.number_of_questions }}</p>
+                            <p><strong>Total Marks:</strong> {{ eval.exam.max_scores }}</p>
+                            </div>
+                            <form id="assessment-form" class="space-y-4 overflow-y-auto max-h-[calc(100vh-200px)]" method="PUT" action="{% url 'peer_eval' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="document_id" value="{{ eval.document.id }}">
+                            {% for i in eval.get_score %}
+                              <div class="form-group">
+                                <label for="question-{{ forloop.counter }}">Question: {{ forloop.counter }}</label>
+                                <input type="number" id="question-{{ forloop.counter }}" name="question-{{ forloop.counter }}" min="0" class="form-control d-inline-block w-auto" max="{{ eval.exam.marks_per_question }}" value="0" placeholder="Score" required> /{{ eval.exam.marks_per_question }}
+                                <input type="text" id="feedback-{{ forloop.counter }}" name="feedback-{{ forloop.counter }}" class="form-control mt-2" placeholder="Comment">
+                              </div>
+                            {% endfor %}
+                            <!-- Submit Button -->
+                            <button id="submit-btn" type="submit"
+                              class="btn btn-primary w-100 mt-4">
+                              Submit
+                            </button>
+                            <script>
+                              document.getElementById('assessment-form').addEventListener('submit', function(event) {
+                                event.preventDefault(); // Prevent the default form submission
+
+                                const formData = new FormData(this); // Create a FormData object from the form
+
+                                fetch('/peer_eval/', {
+                                  method: 'PUT',
+                                  body: formData,
+                                  headers: {
+                                    'X-CSRFToken': '{{ csrf_token }}' // Include the CSRF token
+                                  }
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                  if (data.success) {
+                                    alert('Evaluation submitted successfully!');
+                                    closeOverlay(); // Close the overlay on success
+                                  } else {
+                                    alert('Failed to submit evaluation. Please try again.');
+                                  }
+                                })
+                                .catch(error => {
+                                  console.error('Error:', error);
+                                  alert('An error occurred. Please try again.');
+                                });
+                              });
+                            </script>
+                            </form>
+                          </div>
+                          </div>
+                        </div>
+                      </div>
+                    {% endfor %}
                   </tbody>  
               </table>
-              
-              
-              <!-- Overlay for PDF and Evaluation Form -->
-                <div id="pdfOverlay" class="overlay">
-                    <div class="overlay-content">
-                    <button class="btn btn-danger close-btn" onclick="closeOverlay()">Close</button>
-                    <div class="content-wrapper">
-                        <!-- Left: PDF Viewer -->
-                        <div class="left-pane">
-                        <iframe id="pdfFrame" src="" style="width: 100%; height: 100%;" frameborder="0"></iframe>
-                        </div>
-                        <!-- Right: Dummy Evaluation Form -->
-                        <div class="right-pane">
-                        <h4>Evaluation Form</h4>
-                        <form id="evaluationForm">
-                            <div class="form-group">
-                            <label for="evaluationScore">Score</label>
-                            <input type="number" id="evaluationScore" class="form-control" placeholder="Enter Score">
-                            </div>
-                            <div class="form-group">
-                            <label for="evaluationRemarks">Remarks</label>
-                            <textarea id="evaluationRemarks" class="form-control" rows="5" placeholder="Enter Remarks"></textarea>
-                            </div>
-                            <button type="button" class="btn btn-success" onclick="submitEvaluation()">Submit</button>
-                        </form>
-                        </div>
-                    </div>
-                    </div>
-                </div>
               </div>
             </div>
           </div>
         </div>
-    
-        <div class="col-xl-6">
-          <div class="card" style="height: 400px; width: 100%;">
-            <div class="card-header border-0">
-              <div class="row align-items-center">
-                <div class="col">
-                  <h3 class="mb-0">Upload evaluation</h3>
-                  <div class="form-group">
-                  <label for="todaysTopic">Evaluation for</label>
-                  <select class="form-control" id="exam">
-                    {% for exam in exams %}
-                      <option value="{{ exam.id }}">{{ exam.batch }}</option>
-                    {% endfor %}
-                  </select>
-
-                  <label for="evaluationfile">Upload your evaluation</label>
-                  <input type="file" class="form-control-file" id="evaluationfile" aria-describedby="evaluationfileHelp">
-                  <small id="evaluationfileHelp" class="form-text text-muted">Only PDF files are allowed</small>
-                  <button type="submit" class="btn btn-sm btn-primary">Submit</button>
-                  
-                </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      {% include "includes/footer.html" %}
-      
+      </div>
     </div>
 
 {% endblock content %}
@@ -207,73 +215,71 @@
 
   <script>
     const dropArea = document.getElementById('drop-area');
-const fileInput = document.getElementById('file-input');
-const fileInfo = document.getElementById('file-info');
-const submitButton = document.getElementById('submit-button');
-const triggerButton = document.getElementById('trigger-button');
-const headerTitle = document.getElementById('header-title');
-const fileNameElement = document.getElementById('file-name');
+    const fileInput = document.getElementById('file-input');
+    const fileInfo = document.getElementById('file-info');
+    const submitButton = document.getElementById('submit-button');
+    const triggerButton = document.getElementById('trigger-button');
+    const headerTitle = document.getElementById('header-title');
+    const fileNameElement = document.getElementById('file-name');
 
-// Trigger file input dialog
-function triggerFileInput() {
-  fileInput.click();
-}
+    // Trigger file input dialog
+    function triggerFileInput() {
+      fileInput.click();
+    }
 
-// Highlight the drop area on drag events
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
-  dropArea.addEventListener(event, (e) => e.preventDefault());
-});
+    // Highlight the drop area on drag events
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+      dropArea.addEventListener(event, (e) => e.preventDefault());
+    });
 
-['dragenter', 'dragover'].forEach(event => {
-  dropArea.addEventListener(event, () => dropArea.classList.add('bg-gray-100'));
-});
+    ['dragenter', 'dragover'].forEach(event => {
+      dropArea.addEventListener(event, () => dropArea.classList.add('bg-gray-100'));
+    });
 
-['dragleave', 'drop'].forEach(event => {
-  dropArea.addEventListener(event, () => dropArea.classList.remove('bg-gray-100'));
-});
+    ['dragleave', 'drop'].forEach(event => {
+      dropArea.addEventListener(event, () => dropArea.classList.remove('bg-gray-100'));
+    });
 
-// Handle drop event
-dropArea.addEventListener('drop', (e) => {
-  const files = e.dataTransfer.files;
-  if (files.length > 0) {
-    fileInput.files = e.dataTransfer.files;
-    handleFileSelection(fileInput.files[0]);
-  }
-});
+    // Handle drop event
+    dropArea.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        handleFileSelection(fileInput.files[0]);
+      }
+    });
 
-// Handle file input change
-fileInput.addEventListener('change', () => {
-  const files = fileInput.files;
-  if (files.length > 0) {
-    handleFileSelection(files[0]);
-  }
-});
+    // Handle file input change
+    fileInput.addEventListener('change', () => {
+      const files = fileInput.files;
+      if (files.length > 0) {
+        handleFileSelection(files[0]);
+      }
+    });
 
-// Handle file selection
-function handleFileSelection(file) {
-  if (file.type === 'application/pdf') {
-    fileNameElement.textContent = file.name; // Update file name display
-    fileInfo.classList.remove('hidden'); // Show file info
-    submitButton.classList.remove('hidden'); // Show submit button
-    triggerButton.classList.add('hidden'); // Hide upload button
-    headerTitle.textContent = `File Selected: ${file.name}`; // Update header title
-  } else {
-    alert('Only PDF files are allowed!');
-    fileInput.value = ''; // Clear invalid selection
-    resetForm();
-  }
-}
+    // Handle file selection
+    function handleFileSelection(file) {
+      if (file.type === 'application/pdf') {
+        fileNameElement.textContent = file.name; // Update file name display
+        fileInfo.classList.remove('hidden'); // Show file info
+        submitButton.classList.remove('hidden'); // Show submit button
+        triggerButton.classList.add('hidden'); // Hide upload button
+        headerTitle.textContent = `File Selected: ${file.name}`; // Update header title
+      } else {
+        alert('Only PDF files are allowed!');
+        fileInput.value = ''; // Clear invalid selection
+        resetForm();
+      }
+    }
 
-// Reset form to initial state
-function resetForm() {
-  fileInfo.classList.add('hidden');
-  submitButton.classList.add('hidden');
-  triggerButton.classList.remove('hidden');
-  headerTitle.textContent = 'Upload Files';
-}
+    // Reset form to initial state
+    function resetForm() {
+      fileInfo.classList.add('hidden');
+      submitButton.classList.add('hidden');
+      triggerButton.classList.remove('hidden');
+      headerTitle.textContent = 'Upload Files';
+    }
 
-  </script>
-  <script>
     // Open the PDF overlay and load the PDF
     function openPDFOverlay(pdfUrl) {
       const pdfFrame = document.getElementById('pdfFrame');
