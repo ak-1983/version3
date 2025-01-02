@@ -147,7 +147,6 @@ class CourseTopic(models.Model):
 
 
 class LLMEvaluation(models.Model):
-    id = models.AutoField(primary_key=True)
     Topic = models.ForeignKey(CourseTopic, on_delete=models.CASCADE)
     student = models.ForeignKey(User, on_delete=models.CASCADE)
     answer = models.TextField()

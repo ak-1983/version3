@@ -40,6 +40,7 @@ import google.generativeai as genai
 
 genai.configure(api_key="AIzaSyBrat_wDHdrOGboCJfT-mYhyD_dpqipsbM")
 
+
 def geminiGenerate(prompt):
     model = genai.GenerativeModel('gemini-1.5-pro')
     response = model.generate_content(prompt)
@@ -306,10 +307,10 @@ def assign_papers(peers, papers, k=2, incentives=0, paper_capacity=None, exam=No
     return assignments
 
 
-
 # NOTE: This function renders dashboard for all the roles
 @login_required(login_url="/login/")
 def index(request):
+
     # Handle login for Admin
     if request.user.is_superuser:
         courses = Course.objects.all()
@@ -394,6 +395,7 @@ def index(request):
     elif not request.user.is_staff or not request.user.is_superuser: # Student role
 
         enrolled_courses = StudentEnrollment.objects.filter(student=request.user).values_list('batch', flat=True)
+        pending_evaluations = PeerEvaluation.objects.filter(evaluator=request.user, score="")
         batches = Batch.objects.all()
         tas = [{
             'batch': ta.batch.batch_id,
@@ -432,8 +434,17 @@ def index(request):
             exam_date = exam_date.astimezone(india_timezone) - timedelta(hours=5, minutes=30)
             expiration_time = exam_date + timedelta(minutes=exam.duration)
             if exam_date <= current_time <= expiration_time:
+                exam.expiration_date = expiration_time
                 active_exams.append(exam)
-        context = {'segment': 'index', 'courses': batches_list, 'is_ta': len(tas) > 0, 'exams': active_exams}
+
+        counts = {
+            "courses_enrolled": enrolled_courses.count(),
+            "pending_evaluations": pending_evaluations.count(),
+            "tas": len(tas),
+            "active_exams": len(active_exams)  # Number of active exams in the current time window.
+        }
+        context = {'segment': 'index', 'courses': batches_list, 'counts': counts,
+                   'is_ta': len(tas) > 0, 'exams': active_exams}
         html_template = loader.get_template('home/student/index.html')
         return HttpResponse(html_template.render(context, request))
 
@@ -579,7 +590,6 @@ def batch(request):
     else:
         messages.error(request, 'Invalid request method.')
         return redirect('home')
-
 
 
 def generate_student_pdf(student, exam, n_extra_pages):
