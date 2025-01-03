@@ -320,16 +320,20 @@
           {% csrf_token %}
           <div class="modal-content">
             <div class="modal-header">
-              <h5 class="modal-title" id="addTeachingAssistantModalLabel">Analytics</h5>
+              <h5 class="modal-title" id="addTeachingAssistantModalLabel">Analytics: Marks vs No of Students</h5>
               <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
               </button>
             </div>
+            
+            
+            <div class="card-body">
+              <div style="height: 400px;">
+                  <canvas id="myChart"></canvas>
+              </div>
+          </div>
+      
 
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-              <button type="submit" class="btn btn-primary">Assign</button>
-            </div>
           </div>
         </form>
       </div>
@@ -517,8 +521,46 @@
         });
     }
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <div class="card-body">
+    <div style="height: 400px;">
+        <canvas id="myChart"></canvas>
+    </div>
+</div>
 
-  <script src="/static/assets/vendor/chart.js/dist/Chart.min.js"></script>
-  <script src="/static/assets/vendor/chart.js/dist/Chart.extension.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Parse chart data passed from Django context
+        const chartData = JSON.parse('{{ context.chart_data|safe }}');
 
+        const ctx = document.getElementById('myChart').getContext('2d');
+
+        // Create a new Chart
+        new Chart(ctx, {
+            type: 'line', // Chart type changed to 'line'
+            data: {
+                labels: chartData.labels, // X-axis labels
+                datasets: [{
+                    label: 'Number of Students',
+                    data: chartData.values, // Y-axis values
+                    borderColor: 'rgba(75, 192, 192, 1)', // Line color
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)', // Fill under the line
+                    borderWidth: 2, // Line thickness
+                    tension: 0.4 // Smooth curve for the line
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true // Ensure Y-axis starts at zero
+                    }
+                }
+            }
+        });
+    });
+</script>
+
+  
+  
 {% endblock javascripts %}

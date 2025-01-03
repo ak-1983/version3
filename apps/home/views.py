@@ -867,12 +867,24 @@ def examination(request):
             batches = Batch.objects.filter(teacher=request.user)
             batch_data = []
             exams_list = []
+            chart_data = {
+                'labels': sorted([2, 4, 5, 2, 3, 5]),
+                'values': [65, 59, 80, 81, 56, 55]
+            }
+            
+            context = {
+                'chart_data': json.dumps(chart_data)
+            }
             for batch in batches:
                 exams = Exam.objects.filter(batch=batch, completed=False).first()
                 if exams: exams_list.append(exams)
                 batch_data.append({'batch': batch, 'exams': exams})
 
-            return render(request, 'home/teacher/examination.html', {'batch_data': batch_data, 'exams': exams_list})
+            return render(request, 'home/teacher/examination.html',  {
+                'batch_data': batch_data,
+                'exams': exams_list,
+                'context':context,
+            })
 
 
     elif request.method == 'POST':
