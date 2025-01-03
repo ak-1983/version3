@@ -961,7 +961,38 @@ def peer_evaluation(request):
 
     if request.method == 'GET':
         peerevaluations = PeerEvaluation.objects.filter(evaluator=request.user)
-        return render(request, 'home/student/peer_evaluation.html', {'evaluations': peerevaluations})
+        results = PeerEvaluation.objects.filter(student=request.user)
+        final_results = {}
+        for result in results:
+            course = result.exam.batch.course.name
+            batch_id = result.exam.batch.batch_id
+            exam_id = result.exam.id
+            max_scores = result.exam.max_scores
+            score = sum(eval(result.score))
+
+            if exam_id not in final_results:
+                final_results[exam_id] = {
+                    'course': course,
+                    'batch_id': batch_id,
+                    'date': result.exam.date.strftime('%d/%m/%Y'),
+                    'total_score': 0,
+                    'count': 0,
+                    'max_scores': max_scores,
+                    'evaluations': []
+                }
+
+            final_results[exam_id]['total_score'] += score
+            final_results[exam_id]['count'] += 1
+            final_results[exam_id]['evaluations'].append(result)
+
+        for exam_id, data in final_results.items():
+            data['score'] = data['total_score'] / data['count'] if data['count'] != 0 else 0
+
+        final_results = [final_results[i] for i in final_results.keys()]
+
+        return render(request, 'home/student/peer_evaluation.html', {'evaluations': peerevaluations,
+                                                                     'is_ta': TeachingAssistantAssociation.objects.filter(teaching_assistant=request.user) != None,
+                                                                     'results': final_results})
 
     if request.method == 'POST':
         if request.user.is_staff:
@@ -986,35 +1017,34 @@ def peer_evaluation(request):
                     
             return redirect('examination')
 
+    else:
+        return redirect('home')
 
-    if request.method == "PUT":
+
+@login_required
+def student_eval(request):
+
+    if request.method == "POST":
         try:
-            form_data = request.PUT.read()
-            print(form_data)
-            document_id = form_data.get('document_id')
-            print(document_id)
-            
+            form_data = request.POST
+            document_id = int(form_data.get('current_evaluation_id'))
             evaluation = PeerEvaluation.objects.get(id=document_id)
-            print(evaluation)
-            number_of_questions = 0
 
+            if evaluation.score and request.user.is_student:
+                return redirect('peer_eval')
+            
+            number_of_questions = evaluation.exam.number_of_questions
             # Parse evaluations and feedback from the form data
             evaluations = [int(form_data.get(f'question-{i}', 0)) for i in range(1, number_of_questions + 1)]
             feedback = [form_data.get(f'feedback-{i}', '').strip() for i in range(1, number_of_questions + 1)]
-
-            # Update evaluation details
-            # evaluation.feedback = feedback
-            # evaluation.score = sum(evaluations)
-            # evaluation.ticket = 0  # Set the ticket field to 0
-            # evaluation.save()
-
-            # Respond with success
+            evaluation.feedback = feedback
+            evaluation.score = str(evaluations)
+            evaluation.ticket = 0
+            evaluation.save()
             return redirect('peer_eval')
-        except:
+        except Exception as e:
+            print(f"An error occurred: {str(e)}")
             return redirect('peer_eval')
-    
-    else:
-        return redirect('home')
 
 
 @login_required

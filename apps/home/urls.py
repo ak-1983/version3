@@ -8,12 +8,13 @@ from apps.home import views
 
 urlpatterns = [
     path('', views.index, name='home'),
-    path('/add_course', views.course, name='add_course'),
-    path('/add_batch', views.batch, name='add_batch'),
-    path('/download_csv', views.download_answer_sheets, name='download_csv'),
-    path('/enrollment', views.enrollment, name='enrollment'),
+    path('add_course', views.course, name='add_course'),
+    path('add_batch', views.batch, name='add_batch'),
+    path('download_csv', views.download_answer_sheets, name='download_csv'),
+    path('enrollment', views.enrollment, name='enrollment'),
     path('ta_hub/', views.ta_hub, name='ta_hub'),
     path('examination/', views.examination, name='examination'),
+    path('student_eval', views.student_eval, name='student_eval'),
     path('peer_eval/', views.peer_evaluation, name='peer_eval'), # Send students for peer evaluation
     path('upload-evaluation/', views.upload_evaluation, name="upload_evaluation"),
     path('analytics/', views.analytics, name="analytics"),
