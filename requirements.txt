@@ -18,4 +18,5 @@ sudo
 google
 networkx
 PyPDF2
+google.generativeai
 # sudo apt install zbar-tools
