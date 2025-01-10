@@ -810,20 +810,16 @@ def enrollment(request):
                 action = json.loads(data)['student_action']
                 username = User.objects.get(email=username)
                 studentenrollment = StudentEnrollment.objects.filter(batch_id=batch_id, student__username=username).first()
-                print(studentenrollment)
                 if studentenrollment:
                     if action == "1":
                         studentenrollment.approval_status = True
                         studentenrollment.save()
                         messages.success(request, 'Student approved successfully!')
-                        print("Approved")
                     elif action == "0":
                         studentenrollment.delete()
                         messages.error(request, 'Student rejected successfully!')
-                        print("Rejected")
                 else:
                     messages.error(request, 'Student not found in the selected batch.')
-                    print("Not found")
                 return redirect('home')
         except Exception as e:
             pass
@@ -923,7 +919,7 @@ def examination(request):
             batches = Batch.objects.filter(teacher=request.user)
             batch_data = []
             exams_list = []
-            chart_data_list = {}  # To store histogram and pie chart data for each exam
+            chart_data_list = {}
 
             for batch in batches:
                 exams = Exam.objects.filter(batch=batch, completed=False).first()
@@ -979,9 +975,10 @@ def examination(request):
                         'histogram': histogram_data,
                         'pie_chart': percentage_data,
                     }
-                    print(exams.graphs)
 
+                    exams_list.append(exams)
                 batch_data.append({'batch': batch, 'exams': exams})
+            
             return render(request, 'home/teacher/examination.html', {
                 'batch_data': batch_data,
                 'exams': exams_list,
@@ -1052,20 +1049,19 @@ def examination(request):
                     exam = Exam.objects.get(id=exam_id)
                     exam.completed = True
                     exam.save()
-                    messages.success(request, 'Exam completed successfully!')
                 except json.JSONDecodeError:
-                    messages.error(request, 'Invalid JSON data.')
+                    print(request, 'Invalid JSON data.')
                 except Exam.DoesNotExist:
-                    messages.error(request, 'Exam not found.')
+                    print(request, 'Exam not found.')
                 except Exception as e:
-                    messages.error(request, f'An error occurred: {str(e)}')
+                    print(request, f'An error occurred: {str(e)}')
             else:
-                messages.error(request, 'No data provided.')
+                print(request, 'No data provided.')
             return redirect('examination')
 
 
     else:
-        messages.error(request, 'Invalid request method.')
+        print(request, 'Invalid request method.')
         return 
 
 
