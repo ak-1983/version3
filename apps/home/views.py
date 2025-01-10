@@ -14,9 +14,11 @@ from django.db import IntegrityError
 import zipfile
 import random
 import string
+import ast
 import array
 import csv
 import json
+import pandas as pd
 from datetime import datetime, timedelta
 from django.db.models import ExpressionWrapper, F, DateTimeField
 from django.utils import timezone
@@ -921,8 +923,8 @@ def examination(request):
             batches = Batch.objects.filter(teacher=request.user)
             batch_data = []
             exams_list = []
+            chart_data_list = {}  # To store histogram and pie chart data for each exam
 
-            # Assuming exams_list and batch_data are already defined
             for batch in batches:
                 exams = Exam.objects.filter(batch=batch, completed=False).first()
 
@@ -930,44 +932,59 @@ def examination(request):
                     exams.document_count = Documents.objects.filter(exam=exams).count()
                     evaluations = PeerEvaluation.objects.filter(exam=exams)
                     student_scores = {}
-                    
+
                     # Adjust student scores by dividing by exams.k
                     for evaluation in evaluations:
                         if evaluation.student_id not in student_scores:
                             student_scores[evaluation.student_id] = 0
                         student_scores[evaluation.student_id] += evaluation.total / exams.k
-                    
-                    # Define bins based on max marks
-                    max_marks = exams.max_scores / exams.k  # Normalize max marks
-                    bin_count = 10  # Define the number of bins
-                    score_bins = np.linspace(0, max_marks, bin_count + 1)  # Create bins
+
+                    # Define bins for score histogram
+                    max_marks = exams.max_scores  # Total maximum marks
+                    bin_count = 10
+                    score_bins = np.linspace(0, max_marks, bin_count + 1)  # Create score bins
+
+                    # Define bins for percentage pie chart
+                    percentage_bins = np.linspace(0, 100, bin_count + 1)  # Percentage bins
 
                     # Initialize scores list for histogram
-                    scores_list = {
-                        'labels': [0 for _ in range(len(score_bins) - 1)],  # Initialize counts for each bin
+                    histogram_data = {
+                        'labels': [0 for _ in range(len(score_bins) - 1)],
                         'values': [f"{int(score_bins[i])}-{int(score_bins[i + 1])}" for i in range(len(score_bins) - 1)],
                     }
-                    
-                    # Distribute scores into bins
+
+                    # Initialize percentage list for pie chart
+                    percentage_data = {
+                        'labels': [0 for _ in range(len(percentage_bins) - 1)],
+                        'values': [f"{int(percentage_bins[i])}%-{int(percentage_bins[i + 1])}%" for i in range(len(percentage_bins) - 1)],
+                    }
+
+                    # Distribute scores into bins for histogram
                     for student_id, score in student_scores.items():
                         for i in range(len(score_bins) - 1):
                             if score_bins[i] <= score < score_bins[i + 1]:
-                                scores_list['labels'][i] += 1
+                                histogram_data['labels'][i] += 1
                                 break
 
-                    # Prepare chart data for visualization
-                    chart_data = {
-                        'labels': scores_list['values'],
-                        'values': scores_list['labels'],
-                    }
-                    exams_list.append(exams)
-                
-                batch_data.append({'batch': batch, 'exams': exams})
+                    # Distribute percentages into bins for pie chart
+                    for student_id, score in student_scores.items():
+                        percentage = (score / max_marks) * 100  # Convert score to percentage
+                        for i in range(len(percentage_bins) - 1):
+                            if percentage_bins[i] <= percentage < percentage_bins[i + 1]:
+                                percentage_data['labels'][i] += 1
+                                break
 
-            return render(request, 'home/teacher/examination.html',  {
+                    # Combine both datasets
+                    exams.graphs = {
+                        'histogram': histogram_data,
+                        'pie_chart': percentage_data,
+                    }
+                    print(exams.graphs)
+
+                batch_data.append({'batch': batch, 'exams': exams})
+            return render(request, 'home/teacher/examination.html', {
                 'batch_data': batch_data,
-                'exams': exams_list
-                # 'context':context,
+                'exams': exams_list,
             })
 
 
@@ -1016,13 +1033,13 @@ def examination(request):
                     exam.delete()
                     messages.success(request, 'Exam deleted successfully!')
                 except json.JSONDecodeError:
-                    messages.error(request, 'Invalid JSON data.')
+                    print(request, 'Invalid JSON data.')
                 except Exam.DoesNotExist:
-                    messages.error(request, 'Exam not found.')
+                    print(request, 'Exam not found.')
                 except Exception as e:
-                    messages.error(request, f'An error occurred: {str(e)}')
+                    print(request, f'An error occurred: {str(e)}')
             else:
-                messages.error(request, 'No data provided.')
+                pass
             return redirect('examination')
     
     
@@ -1261,6 +1278,91 @@ def upload_evaluation(request):
                           {"error": f"An error occurred while processing the files: {str(e)}"})
 
     return render(request, "home/student/peer_evaluation.html")
+
+
+from django.utils.timezone import is_aware
+
+def export_evaluations_to_csv(request, exam_id):
+    # Fetch all evaluations with the required fields
+    evaluations = PeerEvaluation.objects.filter(exam_id=int(exam_id)).values(
+        'evaluator_id', 'evaluated_on', 'document_id', 'student_id', 
+        'exam_id', 'feedback', 'ticket', 'score'
+    )
+
+    # Convert the queryset to a DataFrame
+    df_evaluations = pd.DataFrame(evaluations)
+
+    # Handle empty data
+    if df_evaluations.empty:
+        return HttpResponse("No evaluations available.", content_type="text/plain")
+
+    # Convert timezone-aware datetimes to timezone-unaware
+    for col in ['evaluated_on', 'deadline']:
+        if col in df_evaluations.columns:
+            df_evaluations[col] = df_evaluations[col].apply(
+                lambda dt: dt.replace(tzinfo=None) if is_aware(dt) else dt
+            )
+
+    # Helper function to safely parse and calculate average scores
+    def calculate_avg_scores(scores):
+        try:
+            # Parse scores into lists of numbers and calculate the average
+            score_lists = [ast.literal_eval(score) for score in scores if isinstance(score, str)]
+            flattened_scores = [item for sublist in score_lists for item in sublist]  # Flatten the list of lists
+            return sum(flattened_scores) / len(flattened_scores) if flattened_scores else 0
+        except (ValueError, SyntaxError):
+            # Return 0 if parsing fails
+            return 0
+
+    # Prepare 'Marks Distribution' sheet
+    df_avg_marks = df_evaluations.groupby(['document_id']).agg({'score': calculate_avg_scores}).reset_index()
+    df_avg_marks.rename(columns={'score': 'avg_marks'}, inplace=True)
+
+    # Add student details using UIDMapping and Documents models
+    student_data = []
+    for _, row in df_avg_marks.iterrows():
+        try:
+            # Get the document details
+            doc = Documents.objects.get(id=row['document_id'])
+            # Get the UIDMapping for the document's UID and exam
+            uid_mapping = UIDMapping.objects.get(uid=doc.uid, exam=doc.exam)
+            # Fetch the corresponding user
+            student = uid_mapping.user
+            student_data.append({
+                'Document ID': row['document_id'],
+                'Student Name': f"{student.first_name} {student.last_name} ({student.username})",
+                'Average Marks': row['avg_marks']
+            })
+        except Documents.DoesNotExist:
+            student_data.append({
+                'Document ID': row['document_id'],
+                'Student Name': 'Unknown',
+                'Average Marks': row['avg_marks']
+            })
+        except UIDMapping.DoesNotExist:
+            student_data.append({
+                'Document ID': row['document_id'],
+                'Student Name': 'UID Mapping Not Found',
+                'Average Marks': row['avg_marks']
+            })
+
+    # Convert to DataFrame for Sheet 1
+    df_sheet1 = pd.DataFrame(student_data)
+
+    # Generate Excel file with the processed data
+    with pd.ExcelWriter('evaluations.xlsx', engine='openpyxl') as writer:
+        # Write 'Marks Distribution' sheet
+        df_sheet1.to_excel(writer, sheet_name='Marks Distribution', index=False)
+        # Write raw evaluations data to another sheet
+        df_evaluations.to_excel(writer, sheet_name='Evaluations', index=False)
+
+    # Read the file and prepare response
+    with open('evaluations.xlsx', 'rb') as f:
+        response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=evaluations.xlsx'
+    os.remove('evaluations.xlsx')
+
+    return response
 
 
 @login_required
