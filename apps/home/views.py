@@ -26,7 +26,7 @@ from pyzbar.pyzbar import decode
 from PIL import Image
 import io
 import tempfile
-from django.db.models import Avg, StdDev
+from django.db.models import Avg, StdDev, Q
 from django.http import HttpResponse, FileResponse
 from django.contrib.auth.decorators import user_passes_test
 from fpdf import FPDF
@@ -174,27 +174,29 @@ def flag_evaluations_with_high_std(exam_instance, request, threshold=1.0):
             evaluation.ticket = True
             evaluation.save()
         else:
-            incentive = Incentivization.objects.filter(student=evaluation.student, batch=evaluation.exam.batch).first()
+            incentive = Incentivization.objects.filter(student=evaluation.evaluator, batch=evaluation.exam.batch).first()
             total_exams = UIDMapping.objects.filter(exam__batch=evaluation.exam.batch).count()
             alpha = 0.1
-            exam_count = PeerEvaluation.objects.filter(student=evaluation.student, exam__batch=evaluation.exam.batch).count()
+            exam_count = PeerEvaluation.objects.filter(student=evaluation.student, exam__batch=evaluation.exam.batch, score__isnull=False).values('exam_id').distinct().count()
             print(f"Exam count: {exam_count}")
             incremental_reward = (1 / (1 + math.exp(-alpha * exam_count))) / total_exams
             
             if incentive:
+                print(incentive)
                 incentive.rewards = min(incentive.rewards + incremental_reward, 1.0)
-                incentive.exam_count += 1
+                incentive.exam_count = exam_count
                 incentive.save()
             else:
                 Incentivization.objects.create(
-                    student=evaluation.student,
+                    student=evaluation.evaluator,
                     batch=evaluation.exam.batch,
                     rewards=min(incremental_reward, 1.0),
                     exam_count=1
                 )
-    # if flagged:
-    #     exam_instance.flags = True
-    #     exam_instance.save()
+    
+    if flagged:
+        exam_instance.flags = True
+        exam_instance.save()
 
 
 def is_superuser(self):
@@ -217,6 +219,10 @@ User.add_to_class('is_staff', is_staff)
 def is_teacher(self):
     return self.is_staff and not self.is_superuser
 User.add_to_class('is_teacher', is_teacher)
+
+def is_ta(self):
+    return TeachingAssistantAssociation.objects.filter(teaching_assistant=self).exists()
+User.add_to_class('is_ta', is_ta)
 
 def generate_random_text():
     return ''.join(random.choices(string.ascii_lowercase, k=10))
@@ -864,7 +870,9 @@ def ta_hub(request):
 
     # Fetch data for TA hub
     if request.method == 'GET':
-        batches = Batch.objects.filter(teacher=request.user)
+        batches = Batch.objects.filter(ta_associations__teaching_assistant=request.user)
+        peerevaluations = PeerEvaluation.objects.filter(exam__batch__in=batches).filter(Q(score="") | Q(ticket__gt=0))
+
         tas = [{
             'batch': ta.batch,
             'batch_id': ta.batch.id,
@@ -881,7 +889,7 @@ def ta_hub(request):
                 for student in StudentEnrollment.objects.filter(batch=ta.batch.id, approval_status=False).order_by('approval_status')
             ],
         } for ta in TeachingAssistantAssociation.objects.filter(teaching_assistant=request.user)]
-        return render(request, 'home/student/ta_hub.html', {'batches': batches, 'ta': tas, 'is_ta': len(tas) > 0})
+        return render(request, 'home/student/ta_hub.html', {'evaluations': peerevaluations, 'batches': batches, 'ta': tas, 'is_ta': len(tas) > 0})
 
     # Associate Teaching associate with batch
     if request.method == 'POST':
@@ -1115,7 +1123,6 @@ def peer_evaluation(request):
                 exam_instance.save()
                 return redirect('examination')
             else:
-                # Raise ticket if higher standard deviation as compared to other evaluations
                 flag_evaluations_with_high_std(exam_instance, request)
                 return redirect('examination')
 
@@ -1131,19 +1138,38 @@ def student_eval(request):
             form_data = request.POST
             document_id = int(form_data.get('current_evaluation_id'))
             evaluation = PeerEvaluation.objects.get(id=document_id)
-
-            if evaluation.score and request.user.is_student:
-                return redirect('peer_eval')
-            
             number_of_questions = evaluation.exam.number_of_questions
             evaluations = [int(form_data.get(f'question-{i}', 0)) for i in range(1, number_of_questions + 1)]
+            is_ta_evaluating = form_data.get('is_ta_evaluating') == 'true'
+            if request.user.is_ta:
+                incentive = Incentivization.objects.filter(student=evaluation.evaluator, batch=evaluation.exam.batch).first()
+                total_exams = UIDMapping.objects.filter(exam__batch=evaluation.exam.batch).count()
+                alpha = 0.1
+                exam_count = PeerEvaluation.objects.filter(student=evaluation.student, exam__batch=evaluation.exam.batch, score__isnull=False).values('exam_id').distinct().count()
+                reward = (1 if evaluation.score != "" and (eval(evaluation.score) == evaluations) else -1) * (1 / (1 + math.exp(-alpha * exam_count))) / total_exams
+                if evaluation.score != "" and (eval(evaluation.score) == evaluations):
+                    evaluation.evaluator = request.user
+                if incentive:
+                    incentive.rewards = min(incentive.rewards + reward, 1.0)
+                    incentive.exam_count = exam_count
+                else:
+                    incentive = Incentivization(
+                        student=evaluation.evaluator,
+                        batch=evaluation.exam.batch,
+                        rewards=reward,
+                        exam_count=1
+                    )
+                if is_ta_evaluating and not request.user.is_ta:
+                    incentive.rewards = 0
+                incentive.save()
+
             feedback = [form_data.get(f'feedback-{i}', '').strip() for i in range(1, number_of_questions + 1)]
             evaluation.feedback = feedback
             evaluation.score = str(evaluations)
             evaluation.ticket = 0
             evaluation.save()
             messages.success(request, 'Evaluation submitted successfully!')
-            return redirect('peer_eval')
+            return redirect('ta_hub' if request.user.is_ta else 'peer_eval')
         except Exception as e:
             print(f"An error occurred: {str(e)}")
             return redirect('peer_eval')
