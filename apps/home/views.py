@@ -177,7 +177,7 @@ def flag_evaluations_with_high_std(exam_instance, request, threshold=1.0):
             incentive = Incentivization.objects.filter(student=evaluation.evaluator, batch=evaluation.exam.batch).first()
             total_exams = UIDMapping.objects.filter(exam__batch=evaluation.exam.batch).count()
             alpha = 0.1
-            exam_count = PeerEvaluation.objects.filter(student=evaluation.student, exam__batch=evaluation.exam.batch, score__isnull=False).values('exam_id').distinct().count()
+            exam_count = PeerEvaluation.objects.filter(student=evaluation.evaluator, exam__batch=evaluation.exam.batch, score__isnull=False).values('exam_id').distinct().count()
             print(f"Exam count: {exam_count}")
             incremental_reward = (1 / (1 + math.exp(-alpha * exam_count))) / total_exams
             
@@ -187,6 +187,7 @@ def flag_evaluations_with_high_std(exam_instance, request, threshold=1.0):
                 incentive.exam_count = exam_count
                 incentive.save()
             else:
+                print(incentive)
                 Incentivization.objects.create(
                     student=evaluation.evaluator,
                     batch=evaluation.exam.batch,
@@ -194,9 +195,9 @@ def flag_evaluations_with_high_std(exam_instance, request, threshold=1.0):
                     exam_count=1
                 )
     
-    if flagged:
-        exam_instance.flags = True
-        exam_instance.save()
+    # if flagged:
+    #     exam_instance.flags = True
+    #     exam_instance.save()
 
 
 def is_superuser(self):
@@ -1145,7 +1146,7 @@ def student_eval(request):
                 incentive = Incentivization.objects.filter(student=evaluation.evaluator, batch=evaluation.exam.batch).first()
                 total_exams = UIDMapping.objects.filter(exam__batch=evaluation.exam.batch).count()
                 alpha = 0.1
-                exam_count = PeerEvaluation.objects.filter(student=evaluation.student, exam__batch=evaluation.exam.batch, score__isnull=False).values('exam_id').distinct().count()
+                exam_count = PeerEvaluation.objects.filter(student=evaluation.evaluator, exam__batch=evaluation.exam.batch, score__isnull=False).values('exam_id').distinct().count()
                 reward = (1 if evaluation.score != "" and (eval(evaluation.score) == evaluations) else -1) * (1 / (1 + math.exp(-alpha * exam_count))) / total_exams
                 if evaluation.score != "" and (eval(evaluation.score) == evaluations):
                     evaluation.evaluator = request.user
