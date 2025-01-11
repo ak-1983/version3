@@ -44,11 +44,11 @@ import google.generativeai as genai
 import time
 
 
-genai.configure(api_key="AIzaSyBrat_wDHdrOGboCJfT-mYhyD_dpqipsbM")
+genai.configure(api_key="AIzaSyAb4TTvJNOcSeZe4BgwvUrBgUQeAoYvNXI")
 
 
 def geminiGenerate(prompt):
-    model = genai.GenerativeModel('gemini-1.5-pro')
+    model = genai.GenerativeModel('gemini-1.5-flash')
     response = model.generate_content(prompt)
     return response.text
 
@@ -71,9 +71,9 @@ def parse_llama_json(text):
         raise ValueError(f"Failed to parse JSON: {e}")
 
 
-def evaluate_answers(answer1, answer2, topic):
+def evaluate_answers(answer1, answer2, topic, description):
     prompt = f"""
-    The topic of discussion was: """ + topic + """. I want to evaluate the following student answers:
+    The topic of discussion was: """ + topic + ":" + description + """. I want to evaluate the following student answers:
     
     **Task:** As an AI Assistant, assess the answers provided based on their originality, quality, and relevance to the topic. Also, evaluate the percentage of AI-generated content in the answers. Provide the output in **JSON format** with the following structure:
     
@@ -1398,4 +1398,48 @@ def topic(request):
                 topic.save()
             return redirect('ta_hub')
 
+
     return redirect('ta_hub')
+
+
+@login_required
+def llm_answer(request):
+
+    if request.method == "POST":
+        data = request.POST
+        topic = data.get('todaysTopic')
+        topic = CourseTopic.objects.filter(id=topic).first()
+        lectureTakeaways = data.get('lectureTakeaways')
+        exploreMore = data.get('exploreMore')
+        llmevaluation = LLMEvaluation.objects.filter(Topic=topic, student=request.user).first()
+
+        if llmevaluation:
+            return redirect('home')
+         
+        if topic and lectureTakeaways and exploreMore:
+            attempts = 0
+            max_attempts = 5
+            success = False
+            while not success and attempts < max_attempts:
+                try:
+                    evaluation = evaluate_answers(topic.topic, lectureTakeaways, exploreMore, topic.description)
+                    LLMEvaluation.objects.create(
+                        answer = evaluation['answers'],
+                        feedback = evaluation['feedback'],
+                        score = evaluation['scores'],
+                        ai = evaluation['ai_scores'],
+                        aggregate = evaluation['aggregate_score'],
+                        date = topic.date,
+                        Topic = topic,
+                        student = request.user
+                    )
+                    success = True
+                except Exception as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        raise e
+            return redirect('home')
+        else:
+            return redirect('home')
+    else:
+        return redirect('home')
