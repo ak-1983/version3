@@ -18,6 +18,7 @@ import ast
 import array
 import csv
 import json
+from django.utils.timezone import is_aware
 import pandas as pd
 from datetime import datetime, timedelta
 from django.db.models import ExpressionWrapper, F, DateTimeField
@@ -455,6 +456,7 @@ def index(request):
             'ta_email': ta.teaching_assistant.email,
         } for ta in TeachingAssistantAssociation.objects.filter(teaching_assistant=request.user)]
         batches_list = []
+        topics = []
         for batch in batches:
             course = batch.course
             batches_list.append({
@@ -469,22 +471,31 @@ def index(request):
                 'is_enrolled': batch.id in enrolled_courses,
                 'is_accepted': batch.id in StudentEnrollment.objects.filter(student=request.user, approval_status=True).values_list('batch', flat=True)
             })
+            topic = CourseTopic.objects.filter(batch=batch, date=datetime.now().date()).first()
+            if topic:
+                topics.append(topic)
+
         # Define the India timezone
         india_timezone = pytz.timezone('Asia/Kolkata')
 
         # Get the current time in IST
         current_time = timezone.now().astimezone(india_timezone)
+
+        # Assuming all dates stored in the database are UTC and making them aware in the application.
         exams = Exam.objects.filter(batch__in=batches, completed=False)
         active_exams = []
 
         for exam in exams:
-            if exam.date.tzinfo is None:
-                exam_date = timezone.make_aware(exam.date, timezone=pytz.UTC)
-            else:
-                exam_date = exam.date
-            exam_date = exam_date.astimezone(india_timezone) - timedelta(hours=5, minutes=30)
-            expiration_time = exam_date + timedelta(minutes=exam.duration)
-            if exam_date <= current_time <= expiration_time:
+            # Ensure the exam date is timezone aware
+            exam_date = timezone.make_aware(exam.date, timezone=pytz.UTC) if exam.date.tzinfo is None else exam.date
+            
+            # Convert exam date to IST
+            exam_date_ist = exam_date.astimezone(india_timezone)
+            
+            # Calculate the expiration time
+            expiration_time = exam_date_ist + timedelta(minutes=exam.duration)
+            
+            if exam_date_ist <= current_time <= expiration_time:
                 exam.expiration_date = expiration_time
                 active_exams.append(exam)
 
@@ -495,7 +506,7 @@ def index(request):
             "active_exams": len(active_exams)  # Number of active exams in the current time window.
         }
         context = {'segment': 'index', 'courses': batches_list, 'counts': counts,
-                   'is_ta': len(tas) > 0, 'exams': active_exams}
+                   'is_ta': len(tas) > 0, 'exams': active_exams, 'topics': topics}
         html_template = loader.get_template('home/student/index.html')
         return HttpResponse(html_template.render(context, request))
 
@@ -871,6 +882,7 @@ def ta_hub(request):
     if request.method == 'GET':
         batches = Batch.objects.filter(ta_associations__teaching_assistant=request.user)
         peerevaluations = PeerEvaluation.objects.filter(exam__batch__in=batches).filter(Q(score="") | Q(ticket__gt=0))
+        topics = CourseTopic.objects.filter(batch__in=batches).order_by('-date')[:5]
 
         tas = [{
             'batch': ta.batch,
@@ -888,7 +900,7 @@ def ta_hub(request):
                 for student in StudentEnrollment.objects.filter(batch=ta.batch.id, approval_status=False).order_by('approval_status')
             ],
         } for ta in TeachingAssistantAssociation.objects.filter(teaching_assistant=request.user)]
-        return render(request, 'home/student/ta_hub.html', {'evaluations': peerevaluations, 'batches': batches, 'ta': tas, 'is_ta': len(tas) > 0})
+        return render(request, 'home/student/ta_hub.html', {'evaluations': peerevaluations, 'batches': batches, 'ta': tas, 'is_ta': len(tas) > 0, 'topics': topics})
 
     # Associate Teaching associate with batch
     if request.method == 'POST':
@@ -1276,8 +1288,6 @@ def upload_evaluation(request):
     return render(request, "home/student/peer_evaluation.html")
 
 
-from django.utils.timezone import is_aware
-
 def export_evaluations_to_csv(request, exam_id):
     # Fetch all evaluations with the required fields
     evaluations = PeerEvaluation.objects.filter(exam_id=int(exam_id)).values(
@@ -1361,22 +1371,31 @@ def export_evaluations_to_csv(request, exam_id):
     return response
 
 
-@login_required
+@user_passes_test(is_ta)
 def topic(request):
 
     if request.method == "POST":
         data = request.POST
+        batch = Batch.objects.filter(id=data.get("course")).first()
         topic_name = data.get("topic_name")
-        topic_description = data.get("topic_description")
+        topic_description = data.get("description")
+        todays_topic = CourseTopic.objects.filter(course=batch.course, batch=batch, date=datetime.now().date()).first()
 
         if topic_name and topic_description:
-            # Topic association and creation
-            topic = CourseTopic.objects.create(
-                name=topic_name,
-                description=topic_description,
-                created_by=request.user
-            )
-            topic.save()
-            return redirect('home')
+            if todays_topic:
+                todays_topic.topic = topic_name
+                todays_topic.description = topic_description
+                todays_topic.date = datetime.now().date()
+                todays_topic.save()
+                return redirect('ta_hub')
+            else:
+                topic = CourseTopic.objects.create(
+                    course=batch.course,
+                    batch=batch,
+                    topic=topic_name,
+                    description=topic_description
+                )
+                topic.save()
+            return redirect('ta_hub')
 
-    return render(request, "home/teacher/topic.html")
+    return redirect('ta_hub')

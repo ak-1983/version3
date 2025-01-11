@@ -343,13 +343,15 @@
             <!-- Today's Topic -->
             <div class="form-group">
               <label for="todaysTopic">Today's Topics</label>
-              <select class="form-control" id="todaysTopic">
-              <option>Introduction to Python</option>
-              <option>Introduction to Django</option>
-              <option>Introduction to Flask</option>
-              <option>Introduction to FastAPI</option>
-              <option>Introduction to Django REST Framework</option>
+              <select class="form-control" id="todaysTopic" onchange="updateDescription()">
+                  <option>Select topics</option>
+                  {% for topic in topics %}
+                  <option value="{{ topic.id }}" title="{{ topic.description }}">
+                      {{ topic.course.name }} | ({{ topic.batch.batch_id }}) : {{ topic.topic }}
+                  </option>
+                  {% endfor %}
               </select>
+              <span id="topicDescription" class="form-text text-muted mt-2">Topic description will appear here.</span>
             </div>
 
             <!-- Takeaways from Today's Lecture -->
@@ -456,8 +458,11 @@
         fileNameDisplay.classList.remove('text-danger', 'text-success');
       }
     });
-  </script>
 
+    function updateDescription(description) {
+      document.getElementById('topicDescription').textContent = description; // Update the textContent of the span
+    }
+</script>
 
   <script src="/static/assets/vendor/chart.js/dist/Chart.min.js"></script>
   <script src="/static/assets/vendor/chart.js/dist/Chart.extension.js"></script>
