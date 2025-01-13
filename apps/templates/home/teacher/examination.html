@@ -127,17 +127,17 @@
             </div>
             <div class="card-body">
               {% if exams|length != 0 %}
-              <form class="form-horizontal" method="POST" action="{% url 'upload_evaluation' %}" enctype="multipart/form-data" onsubmit="return validateForm()">
+                <form class="form-horizontal" method="POST" action="{% url 'upload_evaluation' %}" enctype="multipart/form-data" onsubmit="return validateForm()">
                 {% csrf_token %}
                 
                 <!-- Evaluation Selector -->
                 <div class="form-group">
                   <label for="exam" class="form-label font-weight-bold">Evaluation for Exams</label>                    
-                  <select id="exam_id" name="exam_id" class="form-control custom-select shadow-sm" required>
-                    <option selected disabled>Select an exam</option>
-                    {% for exam in exams %}
-                      <option value="{{ exam.id }}">{{ exam.batch }}</option>
-                    {% endfor %}
+                  <select id="exam_id" name="exam_id" class="form-control custom-select shadow-sm" data-tooltip="Select from exams scheduled to upload an evaluation" required>
+                  <option selected disabled>Select an exam</option>
+                  {% for exam in exams %}
+                    <option value="{{ exam.id }}">{{ exam.batch }}</option>
+                  {% endfor %}
                   </select>
                   <small class="text-muted">Select the exam to upload evaluations</small>
                 </div>
@@ -146,25 +146,25 @@
                 <div class="form-group">
                   <label for="evaluationfile" class="form-label font-weight-bold">Upload your evaluations</label>
                   <div class="border border-secondary border-dashed text-center py-4 rounded upload-area" id="upload-area">
-                    <i class="fas fa-file-pdf text-primary mb-2" style="font-size: 3rem;"></i>
-                    <div class="d-flex justify-content-center align-items-center">
-                      <label for="evaluationfile" class="text-primary font-weight-bold cursor-pointer">
-                        <span>Upload files</span>
-                        <input id="evaluationfile" name="evaluationfile" type="file" accept=".pdf" {% if user.is_teacher %}multiple{% endif %} class="sr-only">
-                      </label>
-                      <p class="ml-1 mb-0">or drag and drop</p>
-                    </div>
-                    <p class="small text-muted mb-0">Only PDF files are allowed (Max size per file: 5MB)</p>
+                  <i class="fas fa-file-pdf text-primary mb-2" style="font-size: 3rem;"></i>
+                  <div class="d-flex justify-content-center align-items-center">
+                    <label for="evaluationfile" class="text-primary font-weight-bold cursor-pointer">
+                    <span>Upload files</span>
+                    <input id="evaluationfile" name="evaluationfile" type="file" accept=".pdf" {% if user.is_teacher %}multiple{% endif %} class="sr-only" required>
+                    </label>
+                    <p class="ml-1 mb-0">or drag and drop</p>
+                  </div>
+                  <p class="small text-muted mb-0">Only PDF files are allowed (Max size per file: 5MB)</p>
                   </div>
                 </div>
                 
                 <!-- Submit Button -->
                 <div class="text-right">
                   <button type="submit" class="btn btn-sm btn-primary shadow tooltip-trigger" data-tooltip="Uploading the selected PDFs for evaluations">
-                    <i class="fas fa-cloud-upload-alt mr-1"></i>Submit
+                  <i class="fas fa-cloud-upload-alt mr-1"></i>Submit
                   </button>
                 </div>
-              </form>
+                </form>
               {% else %}
               <!-- No Evaluations Placeholder -->
               <div class="text-center py-5">
@@ -264,9 +264,7 @@
                                   {% if not batch.exams.evaluations_sent %}
                                     <button
                                       type="button"
-                                      class="btn btn-sm"
-                                      style="background-color: orange; color: white;" 
-                                      class="tooltip-trigger" 
+                                      class="btn btn-sm tooltip-trigger btn-warning"
                                       data-tooltip="Send Documents for Peer Evaluations"
                                       onclick="peerEval({{ batch.exams.id }}, 0)">
                                       <i class="fas fa-paper-plane"></i>
@@ -276,15 +274,19 @@
                                   {% if batch.exams.evaluations_sent and not batch.exams.flags %}
                                     <button
                                       type="button"
-                                      class="btn btn-sm" 
-                                      style="background-color: orange; color: white;" 
-                                      class="tooltip-trigger"
+                                      class="btn btn-sm tooltip-trigger btn-warning"
                                       data-tooltip="Flag the Evaluations with issues"
                                       onclick="peerEval({{ batch.exams.id }}, 1)">
                                       <i class="fas fa-flag"></i>
                                     </button>
                                   {% endif %}
-
+                                {% else %}
+                                    <button
+                                    type="button"
+                                    class="btn btn-sm tooltip-trigger btn-warning"
+                                    data-tooltip="Send reminder to students to upload evaluations">
+                                    <i class="fas fa-envelope"></i>
+                                    </button>
                                 {% endif %}
 
                                 <!-- Declare Examination Cycle as Completed -->
