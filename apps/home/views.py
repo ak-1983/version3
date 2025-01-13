@@ -273,29 +273,6 @@ def convert_pdf_to_image_and_decode_qr(pdf_bytes):
         print(f"Error processing PDF: {e}")
         raise
 
-
-def send_peer_evaluation_email(username, number_of_evaluations, email_id):
-    subject = "Peer Evaluation Request"
-    
-    # Render the HTML template with dynamic content
-    html_message = render_to_string(
-        "email/send_evaluations.html",
-        {
-            "username": username,
-            "evaluation_link": "https://pes.iitrpr.ac.in",
-            "number_of_evaluations": number_of_evaluations
-        },
-    )
-    plain_message = strip_tags(html_message)  # Fallback plain text version
-    
-    # Send the email
-    send_mail(
-        subject=subject,
-        message=plain_message,
-        from_email="no-reply@evaluation-system.com",
-        recipient_list=[email_id],
-        html_message=html_message,
-        fail_silently=False)
     
 
 def assign_evaluations(students, papers, trusted_evaluators, k):
@@ -372,7 +349,23 @@ def assign_evaluations(students, papers, trusted_evaluators, k):
 
     # Save PeerEvaluation objects
     for student, assigned_papers in assignments.items():
-        send_peer_evaluation_email(student.first_name, len(assigned_papers), student.email)
+        subject = "Peer Evaluation Request"
+        html_message = render_to_string(
+            "email/send_evaluations.html",
+            {
+                "username": student.first_name,
+                "evaluation_link": "https://pes.iitrpr.ac.in",
+                "number_of_evaluations": len(assigned_papers)
+            },
+        )
+        plain_message = strip_tags(html_message)
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email="no-reply@evaluation-system.com",
+            recipient_list=[student.email],
+            html_message=html_message,
+            fail_silently=False)
         for paper in assigned_papers:
             new_eval = PeerEvaluation(
                 document=paper,
@@ -1088,6 +1081,27 @@ def examination(request):
                 try:
                     exam_id = json.loads(data)['exam_id']
                     exam = Exam.objects.get(id=exam_id)
+                    students = UIDMapping.objects.filter(exam=exam)
+                    for student in students:
+                        subject = "Peer Evaluation Results"
+                        html_message = render_to_string(
+                            "email/results_available.html",
+                            {
+                                "username": student.user.first_name,
+                                "evaluation_link": "https://pes.iitrpr.ac.in",
+                                "date": exam.date.strftime('%d/%m/%Y'),
+                                "course": exam.batch.course.name,
+                                "batch": exam.batch.batch_id
+                            },
+                        )
+                        plain_message = strip_tags(html_message)
+                        send_mail(
+                            subject=subject,
+                            message=plain_message,
+                            from_email="no-reply@evaluation-system.com",
+                            recipient_list=[student.user.email],
+                            html_message=html_message,
+                            fail_silently=False)
                     exam.completed = True
                     exam.save()
                 except json.JSONDecodeError:

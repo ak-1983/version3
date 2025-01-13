@@ -20,4 +20,5 @@ networkx
 PyPDF2
 google.generativeai
 pandas
+openpyxl
 # sudo apt install zbar-tools
