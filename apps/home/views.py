@@ -898,7 +898,7 @@ def enrollment(request):
         return redirect('home')
 
 
-@login_required
+@user_passes_test(is_ta)
 def ta_hub(request):
 
     # Fetch data for TA hub
@@ -949,15 +949,72 @@ def ta_hub(request):
 def examination(request):
 
     if request.method == 'GET':
-        
         if request.user.is_staff:
             batches = Batch.objects.filter(teacher=request.user)
             batch_data = []
             exams_list = []
             chart_data_list = {}
+            archive = {}
 
             for batch in batches:
+                archived_exams = Exam.objects.filter(batch=batch, completed=True).order_by('-date')
                 exams = Exam.objects.filter(batch=batch, completed=False).first()
+
+                # Add analytics for archived exams
+                archive[batch.course.name + " " + batch.batch_id] = []
+                for archived_exam in archived_exams:
+                    archived_exam.document_count = Documents.objects.filter(exam=archived_exam).count()
+                    evaluations = PeerEvaluation.objects.filter(exam=archived_exam)
+                    student_scores = {}
+
+                    # Adjust student scores by dividing by archived_exam.k
+                    for evaluation in evaluations:
+                        if evaluation.student_id not in student_scores:
+                            student_scores[evaluation.student_id] = 0
+                        student_scores[evaluation.student_id] += evaluation.total / archived_exam.k
+
+                    # Define bins for score histogram
+                    max_marks = archived_exam.max_scores  # Total maximum marks
+                    bin_count = 10
+                    score_bins = np.linspace(0, max_marks, bin_count + 1)  # Create score bins
+
+                    # Define bins for percentage pie chart
+                    percentage_bins = np.linspace(0, 100, bin_count + 1)  # Percentage bins
+
+                    # Initialize scores list for histogram
+                    histogram_data = {
+                        'labels': [0 for _ in range(len(score_bins) - 1)],
+                        'values': [f"{int(score_bins[i])}-{int(score_bins[i + 1])}" for i in range(len(score_bins) - 1)],
+                    }
+
+                    # Initialize percentage list for pie chart
+                    percentage_data = {
+                        'labels': [0 for _ in range(len(percentage_bins) - 1)],
+                        'values': [f"{int(percentage_bins[i])}%-{int(percentage_bins[i + 1])}%" for i in range(len(percentage_bins) - 1)],
+                    }
+
+                    # Distribute scores into bins for histogram
+                    for student_id, score in student_scores.items():
+                        for i in range(len(score_bins) - 1):
+                            if score_bins[i] <= score < score_bins[i + 1]:
+                                histogram_data['labels'][i] += 1
+                                break
+
+                    # Distribute percentages into bins for pie chart
+                    for student_id, score in student_scores.items():
+                        percentage = (score / max_marks) * 100  # Convert score to percentage
+                        for i in range(len(percentage_bins) - 1):
+                            if percentage_bins[i] <= percentage < percentage_bins[i + 1]:
+                                percentage_data['labels'][i] += 1
+                                break
+
+                    # Combine both datasets
+                    archived_exam.graphs = {
+                        'histogram': histogram_data,
+                        'pie_chart': percentage_data,
+                    }
+                    archive[batch.course.name + " " + batch.batch_id].append(archived_exam)
+
 
                 if exams:
                     exams.document_count = Documents.objects.filter(exam=exams).count()
@@ -1017,6 +1074,7 @@ def examination(request):
             return render(request, 'home/teacher/examination.html', {
                 'batch_data': batch_data,
                 'exams': exams_list,
+                'archive': archive,  # Include archive in the context
             })
 
 
@@ -1349,6 +1407,7 @@ def export_evaluations_to_csv(request, exam_id):
         'evaluator_id', 'evaluated_on', 'document_id', 'student_id', 
         'exam_id', 'feedback', 'ticket', 'score'
     )
+    exam = Exam.objects.get(id=exam_id)
 
     # Convert the queryset to a DataFrame
     df_evaluations = pd.DataFrame(evaluations)
@@ -1410,18 +1469,19 @@ def export_evaluations_to_csv(request, exam_id):
     # Convert to DataFrame for Sheet 1
     df_sheet1 = pd.DataFrame(student_data)
 
+    filename = f"{exam.date.strftime('%Y-%m-%d')}_{exam.batch.course.name}_{exam.batch.batch_id}"
     # Generate Excel file with the processed data
-    with pd.ExcelWriter('evaluations.xlsx', engine='openpyxl') as writer:
+    with pd.ExcelWriter(f'{filename}.xlsx', engine='openpyxl') as writer:
         # Write 'Marks Distribution' sheet
         df_sheet1.to_excel(writer, sheet_name='Marks Distribution', index=False)
         # Write raw evaluations data to another sheet
         df_evaluations.to_excel(writer, sheet_name='Evaluations', index=False)
 
     # Read the file and prepare response
-    with open('evaluations.xlsx', 'rb') as f:
+    with open(f'{filename}.xlsx', 'rb') as f:
         response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename=evaluations.xlsx'
-    os.remove('evaluations.xlsx')
+        response['Content-Disposition'] = f'attachment; filename={filename}.xlsx'
+    os.remove(f'{filename}.xlsx')
 
     return response
 
@@ -1476,17 +1536,22 @@ def llm_answer(request):
             success = False
             while not success and attempts < max_attempts:
                 try:
-                    evaluation = evaluate_answers(topic.topic, lectureTakeaways, exploreMore, topic.description)
-                    LLMEvaluation.objects.create(
-                        answer = evaluation['answers'],
-                        feedback = evaluation['feedback'],
-                        score = evaluation['scores'],
-                        ai = evaluation['ai_scores'],
-                        aggregate = evaluation['aggregate_score'],
-                        date = topic.date,
-                        Topic = topic,
-                        student = request.user
-                    )
+                    def evaluate_task():
+                        evaluation = evaluate_answers(topic.topic, lectureTakeaways, exploreMore, topic.description)
+                        LLMEvaluation.objects.create(
+                            answer=evaluation['answers'],
+                            feedback=evaluation['feedback'],
+                            score=evaluation['scores'],
+                            ai=evaluation['ai_scores'],
+                            aggregate=evaluation['aggregate_score'],
+                            date=topic.date,
+                            Topic=topic,
+                            student=request.user
+                        )
+
+                    evaluation_thread = threading.Thread(target=evaluate_task)
+                    evaluation_thread.start()
+                    evaluation_thread.join()
                     success = True
                 except Exception as e:
                     attempts += 1
@@ -1504,4 +1569,7 @@ def llm_answer(request):
 def documentation(request):
 
     if request.method == "GET":
-        return render(request, 'documentation/student.html')
+        if request.user.is_student:
+            return render(request, 'documentation/student.html')
+        else:
+            return render(request, 'documentation/teacher.html')
