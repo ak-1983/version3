@@ -1548,6 +1548,12 @@ def llm_answer(request):
                             Topic=topic,
                             student=request.user
                         )
+                        incentive = Incentivization.objects.filter(student=evaluation.evaluator, batch=topic.batch).first()
+                        total_exams = LLMEvaluation.objects.filter(topic__batch=evaluation.exam.batch).count()
+                        alpha = 0.01
+                        exam_count = PeerEvaluation.objects.filter(student=evaluation.evaluator, exam__batch=evaluation.exam.batch, score__isnull=False).values('exam_id').distinct().count()
+                        print(f"Exam count: {exam_count}")
+                        incremental_reward = (1 / (1 + math.exp(-alpha * exam_count))) / total_exams
 
                     evaluation_thread = threading.Thread(target=evaluate_task)
                     evaluation_thread.start()
