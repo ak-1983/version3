@@ -9,17 +9,30 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Global Styles */
+        .image-frame {
+            display: inline-block; /* Makes the image frame fit tightly around the image */
+            padding: 10px; /* Adds padding around the image */
+            border: 5px solid #5e72e4; /* Creates the border with custom color */
+            border-radius: 15px; /* Rounds the corners of the frame */
+            background-color: #f8f9fe; /* Background color inside the frame */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Adds shadow for a 3D effect */
+            max-width: 100%; /* Ensures the frame is responsive */
+            margin: 20px auto; /* Adds space around the frame */
+            text-align: center; /* Centers the frame if it's within a container */
+        }
+    
+        .image-frame img {
+            max-width: 100%; /* Ensures the image is responsive */
+            border-radius: 10px; /* Rounds the image corners */
+        }
+    
         body {
             font-family: 'Open Sans', sans-serif;
             margin: 0;
-            padding: 0;
             background-color: #f8f9fe;
             color: #525f7f;
-            line-height: 1.7;
         }
 
-        /* Header Styles */
         header {
             background-color: #5e72e4;
             color: #fff;
@@ -32,13 +45,12 @@
         }
 
         header h1 {
-            font-size: 2.5rem;
+            font-size: 2rem;
             margin: 0;
         }
 
-        /* Sidebar Styles */
         .sidebar {
-            width: 260px;
+            width: 250px;
             background-color: #172b4d;
             color: #fff;
             position: fixed;
@@ -47,7 +59,6 @@
             bottom: 0;
             padding: 20px 0;
             overflow-y: auto;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
         }
 
         .sidebar ul {
@@ -57,96 +68,55 @@
         }
 
         .sidebar ul li {
-            padding: 12px 20px;
+            padding: 10px 20px;
         }
 
         .sidebar ul li a {
             color: #fff;
             text-decoration: none;
-            font-size: 1rem;
-            font-weight: 600;
             display: flex;
             align-items: center;
+            font-weight: 600;
             transition: background-color 0.3s;
         }
 
         .sidebar ul li a:hover {
             background-color: #5e72e4;
-            border-radius: 5px;
+            border-radius: 4px;
         }
 
         .sidebar ul li a i {
             margin-right: 10px;
         }
 
-        /* Main Content Styles */
         .main-content {
-            margin-left: 280px;
+            margin-left: 250px;
             padding: 40px;
         }
 
         .main-content h2 {
-            font-size: 2rem;
             color: #32325d;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #5e72e4;
-            padding-bottom: 10px;
+            font-size: 1.75rem;
+            margin-bottom: 10px;
         }
 
         .main-content h3 {
-            font-size: 1.5rem;
             color: #525f7f;
+            font-size: 1.5rem;
             margin-top: 20px;
         }
 
         .main-content p {
+            line-height: 1.7;
             margin-bottom: 20px;
         }
 
-        /* Section Content */
         .section-content {
             background-color: #fff;
-            padding: 20px;
-            border-radius: 10px;
+            padding: 15px;
+            border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            margin-bottom: 40px;
-        }
-
-        .section-content ul {
-            margin: 20px 0;
-            padding-left: 20px;
-        }
-
-        .section-content ul li {
-            margin-bottom: 10px;
-            font-size: 1rem;
-        }
-
-        .section-content ol {
-            margin: 20px 0;
-            padding-left: 20px;
-        }
-
-        .section-content ol li {
-            margin-bottom: 10px;
-            font-size: 1rem;
-        }
-
-        /* Image Styling */
-        .image-frame {
-            text-align: center;
-            margin: 20px auto;
-            padding: 10px;
-            background-color: #f8f9fe;
-            border: 5px solid #5e72e4;
-            border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-        }
-
-        .image-frame img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 10px;
+            margin-bottom: 30px;
         }
 
         .image-container {
@@ -157,22 +127,16 @@
         .image-container img {
             max-width: 100%;
             height: auto;
+            border: 1px solid #ccc;
             border-radius: 5px;
         }
 
-        .image-container p {
-            font-size: 0.9rem;
-            color: #525f7f;
-            margin-top: 10px;
-        }
-
-        /* Footer Styles */
         footer {
-            background-color: #f7f9fc;
-            color: #8898aa;
             text-align: center;
             padding: 20px 0;
             font-size: 0.875rem;
+            color: #8898aa;
+            background-color: #f7f9fc;
         }
 
         footer a {
@@ -203,11 +167,33 @@
             <h2>For Professors</h2>
             <div class="section-content">
                 <h3>Registration/Login</h3>
-                <p>Professors will receive login credentials from the admin. Use these credentials to log in as a professor.</p>
+                <p>
+                    Professors do not need to register themselves. Instead, they will receive login credentials from the admin.
+                </p>
+                <p>
+                    After receiving the login credentials, professors can log in as a professor/teacher for the application.
+                </p>
+
                 <h3>Functionalities</h3>
                 <ul>
-                    <li><strong>Dashboard:</strong> View active batches, enrolled students, and Teacher Assistants.</li>
-                    <li><strong>Profile:</strong> View and update your profile details. Use the logout feature when necessary.</li>
+                    <li>
+                        <strong>Dashboard:</strong> The professor dashboard is where a professor can look into active batches, enrolled students concerning batch and course, and look into TeacherAssistants- can also be enrolled through the button Enroll TA.
+                        <div class="image-frame">
+                            <img src="{% static 'assets/img/1.png' %}" alt="Teacher Dashboard">
+                        </div>
+                    </li>
+                    <li>
+                        Hover over buttons to see a description of their functionalities. <b>Use the navigation button at the top-left corner to explore other options.</b>
+                        <div class="image-frame">
+                            <img src="{% static 'assets/img/2.png' %}" alt="top left navigation button">
+                        </div>
+                    </li><br>
+                    <li>
+                        <strong>Profile:</strong> Access your profile page to view account details and use the logout feature.
+                        <div class="image-frame">
+                            <img src="{% static 'assets/img/profile.png' %}" alt="top left navigation button">
+                        </div>
+                    </li>
                 </ul>
             </div>
         </section>
@@ -215,21 +201,49 @@
         <section id="exam-scheduling">
             <h2>Exam Scheduling</h2>
             <div class="section-content">
-                <p>Exam scheduling is available after courses are allotted to the professor.</p>
+                <p><u>This functionality is only available when a course has been allotted to the professor by the admin.</u></p>
                 <div class="image-container">
                     <img src="{% static 'assets/img/nocourseview.png' %}" alt="No Course Allotted View">
-                    <p>No course allotted view</p>
+                    <p><em>View when no course is allotted<br><mark>If you see this please ask admin to allot you course</mark></em></p>
                 </div>
+
+                <div class="image-container">
+                    <img src="{% static 'assets/img/exam-allotted.png' %}" alt="Course Allotted View">
+                    <p><em>View when a course is allotted</em></p>
+                </div>
+
+                <p>
+                    After a course is allotted, professors can add exam ,<mark>like python here</mark>, details such as the date, duration, maximum marks, number of questions, and the number of evaluations required. Once complete, click the "Save" button.
+                </p>
             </div>
         </section>
 
         <section id="uploading-evaluations">
             <h2>Upload and Send</h2>
+            <p><u>This functionality is only available after scheduling exams.</u></p>
             <div class="section-content">
-                <p>Upload scanned answersheets for peer evaluation.</p>
+                <p><strong>Uploading Scanned Answersheets</strong></p>
+                <p>
+                    Here now we can see that the upload option is available for the professor, the answer sheet of all the students from the batch can be uploaded in bulk using the upload button.
+                </p>
                 <div class="image-container">
                     <img src="{% static 'assets/img/all-options.png' %}" alt="All Options">
+                    <p><em>View when you have scheduled the exam<br><mark>If you don't see this please ask admin to check.</mark></em></p>
                 </div>
+                <p><strong>Available Batches Option:</strong></p>
+                <p>Under the available batches now we can see some buttons, if you hover over the button you can see the function of the buttons.</p> 
+                <div class="image-container">
+                    <img src="{% static 'assets/img/buttons.png' %}" alt="buttons">
+                </div>
+                <p><strong>Button Descriptions:</strong></p>
+                <ol>
+                    <li>Download all answer sheets that are uploaded as PDFs.</li>
+                    <li>Send papers for peer evaluation after all the upload is complete.</li>
+                    <li>Mark evaluations as complete.click when all the students have done evaluation and we have a good mean for answers.</li>
+                    <li>Delete all examination data.Please make copy of data you need before using this. </li>
+                    <li>View analytics and download results. Through this you can view all the analytics and graph and also download the results during the evaluation till the evaluation is completed.
+                    </li>
+                </ol>
             </div>
         </section>
     </div>

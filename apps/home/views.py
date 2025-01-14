@@ -1575,7 +1575,7 @@ def llm_answer(request):
 def documentation(request):
 
     if request.method == "GET":
-        if request.user.is_student:
+        if request.user.is_student():
             return render(request, 'documentation/student.html')
         else:
             return render(request, 'documentation/teacher.html')
