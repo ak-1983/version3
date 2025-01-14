@@ -1,6 +1,6 @@
 from django import template
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, HttpResponseRedirect
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import HttpResponse, HttpResponseRedirect, FileResponse
 from django.template import loader
 from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect
@@ -13,13 +13,6 @@ from django.contrib.auth.models import User
 from django.db import IntegrityError
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-import zipfile
-import random
-import string
-import ast
-import array
-import csv
-import json
 from django.utils.timezone import is_aware
 import pandas as pd
 from datetime import datetime, timedelta
@@ -32,8 +25,6 @@ from PIL import Image
 import io
 import tempfile
 from django.db.models import Avg, StdDev, Q
-from django.http import HttpResponse, FileResponse
-from django.contrib.auth.decorators import user_passes_test
 from fpdf import FPDF
 import qrcode
 import tempfile
@@ -45,6 +36,15 @@ import math
 import google.generativeai as genai
 import time
 from django.core.mail import send_mail
+import numpy as np
+import threading
+import zipfile
+import random
+import string
+import ast
+import array
+import csv
+import json
 
 
 genai.configure(api_key="AIzaSyAb4TTvJNOcSeZe4BgwvUrBgUQeAoYvNXI")
@@ -124,9 +124,6 @@ def evaluate_answers(answer1, answer2, topic, description):
         "scores": [scores['question 1']['score'], scores['question 2']['score']]
     }
 
-
-import numpy as np
-import threading
 
 def flag_evaluations_with_high_std(exam_instance, request, threshold=1.0):
     """
@@ -232,6 +229,7 @@ def is_ta(self):
     return TeachingAssistantAssociation.objects.filter(teaching_assistant=self).exists()
 User.add_to_class('is_ta', is_ta)
 
+
 def generate_random_text():
     return ''.join(random.choices(string.ascii_lowercase, k=10))
 
@@ -273,7 +271,7 @@ def convert_pdf_to_image_and_decode_qr(pdf_bytes):
         print(f"Error processing PDF: {e}")
         raise
 
-    
+
 
 def assign_evaluations(students, papers, trusted_evaluators, k):
     """
@@ -573,17 +571,20 @@ def course(request):
         end_date = request.POST.get('end_date')
 
         if course_name and start_date and end_date:
-            # Create and save the course
-            Course.objects.create(
-                name=course_name,
-                description=description,
-                is_public=is_public,
-                start_date=start_date,
-                end_date=end_date,
-                course_id=course_id
-            )
-            messages.success(request, 'Course added successfully!')
-            return redirect('home')
+            try:
+                Course.objects.create(
+                    name=course_name,
+                    description=description,
+                    is_public=is_public,
+                    start_date=start_date,
+                    end_date=end_date,
+                    course_id=course_id
+                )
+                messages.success(request, 'Course added successfully!')
+                return redirect('home')
+            except Exception as e:
+                messages.error(request, f'An error occurred: {str(e)}')
+                return redirect('home')
         else:
             messages.error(request, 'Please fill in all required fields.')
     
@@ -1497,3 +1498,10 @@ def llm_answer(request):
     
     else:
         return redirect('home')
+    
+
+@login_required
+def documentation(request):
+
+    if request.method == "GET":
+        return render(request, 'documentation/student.html')
