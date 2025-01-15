@@ -106,6 +106,7 @@ Follow the Docker instructions outlined previously if you prefer a containerized
 
 
 ## Structure of Repository
+```
 PeerEvaluationV2/
 ├── manage.py               # Django project management script
 ├── requirements.txt        # List of Python dependencies
@@ -141,6 +142,7 @@ PeerEvaluationV2/
 └── tests/                  # Project-wide tests (optional)
     └── ...                 # Additional test modules
 └── README.md               # Project Documentation
+```
 ## Features
 ## Contributing
 ## License
