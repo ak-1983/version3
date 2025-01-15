@@ -234,3 +234,210 @@ User.add_to_class('is_student', is_student)
 ---
 
  # Documentation for Models of the project
+
+## **Models Overview**
+
+### **Course**
+The `Course` model represents a course with its attributes and constraints.
+
+- **Fields**:
+  - `course_id` (*CharField*): Unique identifier for the course.
+  - `name` (*CharField*): Name of the course.
+  - `description` (*TextField*): Description of the course (optional).
+  - `is_public` (*BooleanField*): Indicates if the course is publicly accessible for enrollment.
+  - `start_date` (*DateTimeField*): Start date of the course.
+  - `end_date` (*DateTimeField*): End date of the course.
+
+- **Methods**:
+  - `__str__`: Returns the course name.
+  - `save`: Ensures no overlapping courses with the same ID are scheduled during the specified dates.
+
+---
+
+### **Batch**
+The `Batch` model links a course to a specific batch and teacher.
+
+- **Fields**:
+  - `batch_id` (*CharField*): Unique identifier for the batch.
+  - `course` (*ForeignKey*): References the associated `Course`.
+  - `teacher` (*ForeignKey*): References the teacher managing the batch.
+
+- **Meta**:
+  - `unique_together`: Ensures uniqueness of the teacher for a batch in a course.
+
+- **Methods**:
+  - `__str__`: Returns a descriptive string of the batch.
+  - `enrolled_students_count`: Returns the number of students enrolled in the batch.
+
+---
+
+### **Exam**
+Represents an exam conducted for a batch.
+
+- **Fields**:
+  - `id` (*AutoField*): Primary key.
+  - `batch` (*ForeignKey*): Associated `Batch`.
+  - `date` (*DateTimeField*): Date of the exam.
+  - `number_of_questions` (*IntegerField*): Number of questions in the exam.
+  - `duration` (*IntegerField*): Duration of the exam in minutes.
+  - `max_scores` (*IntegerField*): Maximum score for the exam.
+  - `k` (*IntegerField*): Number of evaluations per student.
+  - `total_students` (*IntegerField*): Total number of students in the batch.
+  - `completed` (*BooleanField*): Indicates if the exam is completed.
+  - `flags` (*BooleanField*): Flags for evaluations.
+  - `evaluations_sent` (*BooleanField*): Indicates if evaluations have been sent.
+
+- **Methods**:
+  - `__str__`: Returns the batch ID.
+  - `evaluation_received`: Returns the count of documents submitted for the exam.
+  - `marks_per_question`: Calculates marks per question based on total scores and questions.
+
+---
+
+### **UIDMapping**
+Maps users to unique identifiers for exams.
+
+- **Fields**:
+  - `user` (*ForeignKey*): References the user.
+  - `exam` (*ForeignKey*): Associated `Exam`.
+  - `uid` (*CharField*): Unique identifier.
+
+- **Meta**:
+  - `unique_together`: Ensures uniqueness of the UID for a user.
+
+- **Methods**:
+  - `__str__`: Returns the username and UID.
+
+---
+
+### **Documents**
+Represents documents uploaded for evaluations.
+
+- **Fields**:
+  - `uid` (*CharField*): Unique identifier for the user.
+  - `exam` (*ForeignKey*): Associated `Exam`.
+  - `document` (*FileField*): Path to the uploaded document.
+  - `uploaded_on` (*DateTimeField*): Timestamp of upload.
+  - `uploaded_by` (*ForeignKey*): User who uploaded the document.
+
+---
+
+### **PeerEvaluation**
+Represents peer evaluations conducted by students.
+
+- **Fields**:
+  - `evaluator` (*ForeignKey*): The user performing the evaluation.
+  - `evaluated_on` (*DateTimeField*): Timestamp of evaluation.
+  - `deadline` (*DateTimeField*): Deadline for completing the evaluation.
+  - `uid` (*CharField*): Unique identifier for the user.
+  - `student` (*ForeignKey*): The user being evaluated.
+  - `exam` (*ForeignKey*): Associated `Exam`.
+  - `document` (*ForeignKey*): Associated `Documents`.
+  - `feedback` (*TextField*): Feedback provided.
+  - `ticket` (*IntegerField*): Ticket for evaluation.
+  - `score` (*TextField*): Score assigned during evaluation.
+
+- **Properties**:
+  - `get_score`: Parses and returns the score as a list.
+  - `get_score_string`: Returns a formatted string of scores.
+  - `total`: Calculates the total score.
+
+---
+
+### **Statistics**
+Stores statistical data for a batch.
+
+- **Fields**:
+  - `batch` (*ForeignKey*): Associated `Batch`.
+  - `avg_score` (*FloatField*): Average score.
+  - `std_dev` (*FloatField*): Standard deviation of scores.
+
+- **Methods**:
+  - `__str__`: Returns a string describing the statistics for a batch.
+
+---
+
+### **Incentivization**
+Tracks rewards and incentives for students in a batch.
+
+- **Fields**:
+  - `batch` (*ForeignKey*): Associated `Batch`.
+  - `student` (*ForeignKey*): The student being incentivized.
+  - `rewards` (*FloatField*): Rewards for the student.
+  - `exam_count` (*IntegerField*): Number of exams attempted by the student.
+
+- **Meta**:
+  - `unique_together`: Ensures no duplicate entries for a student in a batch.
+
+- **Methods**:
+  - `__str__`: Returns a string describing the rewards and batch.
+
+---
+
+### **StudentEnrollment**
+Handles student enrollment in batches and courses.
+
+- **Fields**:
+  - `student` (*ForeignKey*): The student.
+  - `batch` (*ForeignKey*): Associated `Batch`.
+  - `course` (*ForeignKey*): Associated `Course`.
+  - `approval_status` (*BooleanField*): Indicates if the enrollment is approved.
+
+- **Meta**:
+  - `unique_together`: Ensures uniqueness of enrollment requests for a student and course.
+
+- **Methods**:
+  - `save`: Prevents duplicate enrollment requests.
+  - `__str__`: Returns the student username.
+
+---
+
+### **TeachingAssistantAssociation**
+Associates teaching assistants (TAs) with batches.
+
+- **Fields**:
+  - `batch` (*ForeignKey*): Associated `Batch`.
+  - `teaching_assistant` (*ForeignKey*): The TA.
+
+- **Meta**:
+  - `unique_together`: Ensures a TA is not assigned to the same batch multiple times.
+
+- **Methods**:
+  - `__str__`: Returns a string of the TA and batch.
+  - `is_ta`: Static method to check if a user is a TA for a specific batch.
+
+---
+
+### **CourseTopic**
+Represents topics covered in a course.
+
+- **Fields**:
+  - `id` (*AutoField*): Primary key.
+  - `course` (*ForeignKey*): Associated `Course`.
+  - `batch` (*ForeignKey*): Associated `Batch`.
+  - `topic` (*CharField*): Name of the topic.
+  - `description` (*TextField*): Description of the topic.
+  - `date` (*DateField*): Date when the topic is covered.
+
+- **Methods**:
+  - `__str__`: Returns the topic name.
+
+---
+
+### **LLMEvaluation**
+Handles evaluations using Large Language Models (LLM).
+
+- **Fields**:
+  - `Topic` (*ForeignKey*): Associated `CourseTopic`.
+  - `student` (*ForeignKey*): The student.
+  - `answer` (*TextField*): Student's response.
+  - `feedback` (*TextField*): Feedback provided.
+  - `score` (*TextField*): Score assigned.
+  - `ai` (*TextField*): AI evaluation data.
+  - `aggregate` (*IntegerField*): Aggregate score.
+  - `date` (*DateTimeField*): Date of evaluation.
+
+- **Methods**:
+  - `__str__`: Returns a string describing the LLM evaluation for a student.
+
+
