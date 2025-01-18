@@ -78,13 +78,14 @@
                       <form method="POST" action="{% url 'change_password' %}">
                           {% csrf_token %}
                           <div class="form-group">
-                              <label for="old_password">Old Password</label>
+                              <label for="old_password">Current Password</label>
                               <input type="password" name="old_password" class="form-control" required>
                           </div>
                           <div class="form-group">
-                              <label for="new_password1">New Password</label>
-                              <input type="password" name="new_password1" class="form-control" required>
-                          </div>
+                            <label for="new_password1">New Password</label>
+                            <input type="password" name="new_password1" class="form-control" required placeholder="At least 8 characters, include letters, numbers, and symbols">
+                        </div>
+                        
                           <div class="form-group">
                               <label for="new_password2">Confirm New Password</label>
                               <input type="password" name="new_password2" class="form-control" required>

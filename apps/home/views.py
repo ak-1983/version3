@@ -1609,12 +1609,11 @@ def change_password(request):
             update_session_auth_hash(request, user)  # Prevents logout after password change
             messages.success(request, "Your password has been changed successfully.")
             return render(request,'home/profile.html')  # Redirect to profile or home
-        else:
-            messages.error(request, "Please correct the errors below.")
     else:
         form = CustomPasswordChangeForm(user=request.user)
 
-    return render(request, 'accounts/change_password.html', {'form': form})
+    messages.error(request, "Please input valid inputs.")
+    return render(request,'home/profile.html')
     
 
 @login_required
