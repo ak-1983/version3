@@ -943,7 +943,11 @@ def ta_hub(request):
         batch_id = request.POST.get('batch_id')
         ta_username = request.POST.get('teachingAssistantName')
         batch = Batch.objects.get(id=batch_id)
-        ta = User.objects.get(username=ta_username)
+        ta = User.objects.filter(Q(email=ta_username) | Q(username=ta_username)).first()
+        if not ta:
+            messages.error(request, 'TA not found.')
+            return redirect('home')
+        
         if request.user.is_teacher():
             try:
                 TeachingAssistantAssociation.objects.create(
@@ -1660,6 +1664,7 @@ def download_online_eval(request):
     
 @login_required
 def change_password(request):
+
     if request.method == 'POST':
         form = CustomPasswordChangeForm(user=request.user, data=request.POST)
         if form.is_valid():
