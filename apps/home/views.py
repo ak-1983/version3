@@ -1422,13 +1422,12 @@ def upload_evaluation(request):
                 return redirect('examination')
 
         except Exception as e:
-            print(e)
+            messages.error(request, f'An error occurred: {str(e)}')
             return render(request, "home/student/peer_evaluation.html",
                           {"error": f"An error occurred while processing the files: {str(e)}"})
 
 
     return render(request, "home/student/peer_evaluation.html")
-
 
 def export_evaluations_to_csv(request, exam_id):
 
