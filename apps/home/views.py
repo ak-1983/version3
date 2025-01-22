@@ -891,7 +891,7 @@ def enrollment(request):
                         course=batch.course,
                         batch=batch
                     )
-                    messages.success(request, 'Student enrolled successfully!')
+                    messages.success(request, 'Student enrollment requested!')
                     return redirect('home')
 
             except Batch.DoesNotExist:
