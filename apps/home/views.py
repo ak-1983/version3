@@ -1144,6 +1144,7 @@ def examination(request):
                     exam_id = json.loads(data)['exam_id']
                     exam = Exam.objects.get(id=exam_id)
                     exam.delete()
+                    return redirect('examination')
                     messages.success(request, 'Exam deleted successfully!')
                 except json.JSONDecodeError:
                     print(request, 'Invalid JSON data.')
@@ -1421,6 +1422,7 @@ def upload_evaluation(request):
                 return redirect('examination')
 
         except Exception as e:
+            print(e)
             return render(request, "home/student/peer_evaluation.html",
                           {"error": f"An error occurred while processing the files: {str(e)}"})
 
