@@ -1383,7 +1383,7 @@ def upload_evaluation(request):
                         document=final_filename,
                         uploaded_by=request.user
                     )
-                    document.save()
+                   
                     with open(f"apps/static/documents/{final_filename}", "wb") as f:
                         f.write(pdf_content)
                 messages.success(request, 'Evaluation uploaded successfully!')
@@ -1422,13 +1422,12 @@ def upload_evaluation(request):
                 return redirect('examination')
 
         except Exception as e:
-            print(e)
+            messages.error(request, f'An error occurred: {str(e)}')
             return render(request, "home/student/peer_evaluation.html",
                           {"error": f"An error occurred while processing the files: {str(e)}"})
 
     print("Invalid request method.")
     return render(request, "home/student/peer_evaluation.html")
-
 
 def export_evaluations_to_csv(request, exam_id):
 
