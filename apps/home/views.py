@@ -1426,7 +1426,7 @@ def upload_evaluation(request):
             return render(request, "home/student/peer_evaluation.html",
                           {"error": f"An error occurred while processing the files: {str(e)}"})
 
-
+    print("Invalid request method.")
     return render(request, "home/student/peer_evaluation.html")
 
 
