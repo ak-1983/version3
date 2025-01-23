@@ -1383,7 +1383,7 @@ def upload_evaluation(request):
                         document=final_filename,
                         uploaded_by=request.user
                     )
-                    document.save()
+                   
                     with open(f"apps/static/documents/{final_filename}", "wb") as f:
                         f.write(pdf_content)
                 messages.success(request, 'Evaluation uploaded successfully!')
