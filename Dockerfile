@@ -17,9 +17,6 @@ COPY requirements.txt /code/
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Collect static
-RUN python manage.py collectstatic --noinput
-
 # Copy the current directory contents into the container
 COPY . /code/
 
