@@ -167,3 +167,22 @@ The **username** is preferred to be the email name (excluding the domain) of the
 
 This section also serves as a login for **TAs**. You will just have to log in as a student; if the teacher has allotted you as a **TA**, you will be able to see the **TA Hub** option inside the **Dashboard Navbar**.
 
+## Admin Dashboard:
+
+The admin dashboard core controls features like:
+
+- **Handling Allotment of a Teacher to the Portal:**  
+  Through the admin portal, the admin can register a new teacher, and the new teacher will receive an email regarding their registration. After registration, only the teacher will be able to access their portal.
+
+- **Handling New Course Creation:**  
+  If the institution demands new courses, they can be created through the admin dashboard. The course name, duration, and other details can be managed by the admin.
+
+- **New Batch Creations:**  
+  With this option, the admin can allocate a batch for a course to a teacher.
+
+### Other Functions:
+- The admin can view the **number of students** on the portal.
+- The admin can monitor the **number of teachers** registered.
+- The admin can see details of **courses and batches** available on the platform.
+
+
