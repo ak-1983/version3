@@ -143,3 +143,27 @@ PeerEvaluationV2/
     └── ...                 # Additional test modules
 └── README.md               # Project Documentation
 ```
+
+
+
+# In and Out of Peer Evaluation:
+
+## Sign In and Login:
+
+There are 3 types of login:
+
+### **Admin Login**  
+The developer will preset the admin login password based on the organization when they run the project on the server. Please contact the developer team for the admin login. If you are an admin of the organisation, a password will be shared for the same.
+
+### **Teacher Login**  
+Another type of login is teacher login. The teacher login account is set up by the admin. The admin adds the teacher to the application, and the teacher gets an email with the username and password.  
+
+To enhance the security of the application, teachers need to click on **"Forget Password"** after the first mail to receive a new password for logging in as a teacher. (They can change their password through the profile page on the teacher dashboard.)
+
+### **Student Login**  
+The third login type is the student login. This is where students who want to enroll in the portal need to be logged in. A student has to just register through their student college ID (or as preferred by the teacher) to access the portal. They need to use their official name.  
+
+The **username** is preferred to be the email name (excluding the domain) of their **email ID**, making it more understandable for the teacher.  
+
+This section also serves as a login for **TAs**. You will just have to log in as a student; if the teacher has allotted you as a **TA**, you will be able to see the **TA Hub** option inside the **Dashboard Navbar**.
+
