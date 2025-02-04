@@ -1268,7 +1268,7 @@ def examination(request):
 def peer_evaluation(request):
 
     if request.method == 'GET':
-        peerevaluations = PeerEvaluation.objects.filter(evaluator=request.user)
+        peerevaluations = PeerEvaluation.objects.filter(evaluator=request.user, exam__completed=False)
         results = PeerEvaluation.objects.filter(student=request.user, exam__completed=True)
         final_results = {}
         for result in results:
@@ -1311,7 +1311,7 @@ def peer_evaluation(request):
             if (data['flag']) == 0:
                 student_enrollment = [uid.user for uid in UIDMapping.objects.filter(exam=exam_instance)]
                 papers = list(Documents.objects.filter(exam=exam_instance))
-                k = 2
+                k = exam_instance.k
                 incentives = {}
                 success = False
                 attempts = 0
@@ -1515,8 +1515,8 @@ def export_evaluations_to_csv(request, exam_id):
         try:
             # Parse scores into lists of numbers and calculate the average
             score_lists = [ast.literal_eval(score) for score in scores if isinstance(score, str)]
-            flattened_scores = [item for sublist in score_lists for item in sublist]  # Flatten the list of lists
-            return sum(flattened_scores) / len(flattened_scores) if flattened_scores else 0
+            flattened_scores = [item for sublist in score_lists for item in sublist]
+            return sum(flattened_scores) if flattened_scores else 0
         except (ValueError, SyntaxError):
             # Return 0 if parsing fails
             return 0
@@ -1538,19 +1538,19 @@ def export_evaluations_to_csv(request, exam_id):
             student_data.append({
                 'Document ID': row['document_id'],
                 'Student Name': f"{student.first_name} {student.last_name} ({student.username})",
-                'Average Marks': row['avg_marks']
+                'Average Marks': row['avg_marks']/exam.k
             })
         except Documents.DoesNotExist:
             student_data.append({
                 'Document ID': row['document_id'],
                 'Student Name': 'Unknown',
-                'Average Marks': row['avg_marks']
+                'Average Marks': row['avg_marks']/exam.k
             })
         except UIDMapping.DoesNotExist:
             student_data.append({
                 'Document ID': row['document_id'],
                 'Student Name': 'UID Mapping Not Found',
-                'Average Marks': row['avg_marks']
+                'Average Marks': row['avg_marks']/exam.k
             })
 
     # Convert to DataFrame for Sheet 1
