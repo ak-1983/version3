@@ -1758,6 +1758,17 @@ def change_password(request):
 
     messages.error(request, "Please input valid inputs.")
     return render(request,'home/profile.html')
+
+
+def fetch_document(request, file_name):
+    file_obj = Documents.objects.filter(file__icontains=file_name).first()
+    if file_obj:
+        file_path = file_obj.file.path
+        with open(file_path, 'rb') as file:
+            # Prepare the response with the file content
+            response = HttpResponse(file.read(), content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename={file_name}'
+            return response
     
 
 @login_required
