@@ -1911,7 +1911,7 @@ def bulk_register_users(request):
                             },
                         )
                         plain_message = strip_tags(html_message)
-                        # send_email_async(subject, plain_message, html_message, [data["email"]])
+                        send_email_async(subject, plain_message, html_message, [data["email"]])
                     else:
                         failed_users.append({"username": username, "errors": form.errors})
                         continue  # Skip to next user
